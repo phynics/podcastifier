@@ -1,59 +1,51 @@
 "use strict";
 exports.__esModule = true;
 var ydl = require("ytdl-core");
-var fs = require("graceful-fs");
-var ffmpeg = require("ffmpeg");
+var ffmpeg = require("fluent-ffmpeg");
 var rxjs_1 = require("rxjs");
 var FeedTranspiler = /** @class */ (function () {
-    function FeedTranspiler(_Scrapper) {
-        this._Scrapper = _Scrapper;
-        this._download = _Scrapper.feedSubject
+    function FeedTranspiler(_scrapper, _kTmpDir, _kStoDir) {
+        if (_kTmpDir === void 0) { _kTmpDir = "tmp/"; }
+        if (_kStoDir === void 0) { _kStoDir = "storage/"; }
+        var _this = this;
+        this._scrapper = _scrapper;
+        this._kTmpDir = _kTmpDir;
+        this._kStoDir = _kStoDir;
+        this._download = _scrapper.feedSubject
             .flatMap(function (value, index) {
             return rxjs_1.Observable.create(function (observer) {
-                var x = 0, y = 0;
                 value.data.slice(0, 1).forEach(function (element) {
-                    x++;
                     console.log("Starting download for " + element.name);
-                    var vid = ydl(element.remoteUrl);
-                    vid.pipe(fs.createWriteStream(FeedTranspiler._kTmpDir + element.id));
-                    vid.on('finish', function () {
-                        observer.next(element.id);
-                        y++;
-                        if (x == y) {
-                            observer.complete();
-                        }
-                    });
+                    var payload = {
+                        stream: ydl(element.remoteUrl),
+                        name: element.id
+                    };
+                    observer.next(payload);
+                    observer.complete();
                 });
-                //observer.complete();
             });
         })
             .flatMap(function (value, index) {
             return rxjs_1.Observable.create(function (observer) {
-                console.log("Transpiling " + value);
-                var transpiler = ffmpeg(FeedTranspiler._kTmpDir + value);
-                transpiler.then(function (video) {
-                    // Callback mode
-                    video.fnExtractSoundToMP3(FeedTranspiler._kStoDir + value, function (error, file) {
-                        if (!error) {
-                            console.log('Audio id: ' + value);
-                            observer.next(file);
-                            observer.complete();
-                        }
-                        else {
-                            observer.error(JSON.stringify(error));
-                            observer.complete();
-                        }
-                    });
+                console.log("Transpiling from stream");
+                var transpiler = ffmpeg(value.stream)
+                    .withNoVideo()
+                    .audioBitrate('256k')
+                    .audioCodec('libmp3lame')
+                    .audioChannels(2)
+                    .format('mp3')
+                    .output(_this._kStoDir + value.name + ".mp3")
+                    .on('end', function (video) {
+                    observer.next(this._kStoDir + value.name + ".mp3");
+                    observer.complete();
                 });
+                transpiler.run();
             });
         });
         this._download.subscribe(function (value) {
-            fs.unlink(FeedTranspiler._kTmpDir + value, function () { });
-            console.log("completed: " + value);
+            console.log("Completed traspile " + value);
         });
     }
-    FeedTranspiler._kTmpDir = "tmp/";
-    FeedTranspiler._kStoDir = "storage/";
     return FeedTranspiler;
 }());
 exports.FeedTranspiler = FeedTranspiler;

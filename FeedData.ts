@@ -1,5 +1,5 @@
 
-export interface FeedEntry {
+export interface ParsedFeedEntry {
     name: string;
     description: string;
     id: string;
@@ -9,8 +9,16 @@ export interface FeedEntry {
     remoteUrl: string;
 }
 
-export interface FeedData{
+export interface ParsedFeedData{
     name: string;
     fetchDate: number;
-    data: FeedEntry[];
+    data: ParsedFeedEntry[];
+}
+
+export interface FilledFeedEntry extends ParsedFeedEntry {
+    localUrl: string;
+}
+
+export interface FilledFeedData extends FilledFeedEntry {
+    data: FilledFeedEntry[];
 }

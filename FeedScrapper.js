@@ -5,22 +5,29 @@ var rp = require("request-promise-native");
 var parser = require("xml-parser");
 var poller = require("async-polling");
 var FeedScrapper = /** @class */ (function () {
-    function FeedScrapper(_feedName, _feedUrl) {
+    function FeedScrapper(_feedName, _feedUrl, _pollIntervalMS) {
+        if (_pollIntervalMS === void 0) { _pollIntervalMS = 43200000; }
         this._feedName = _feedName;
         this._feedUrl = _feedUrl;
+        this._pollIntervalMS = _pollIntervalMS;
         this.feedSubject = new rxjs.ReplaySubject(1);
-        this.feedSubject.subscribe(function () { return console.log("Subject emmited"); });
+        this.feedSubject.subscribe(function () { return console.log("Fetched new XML file"); });
         this._fetchFeed();
     }
     FeedScrapper.prototype._fetchFeed = function () {
         var _this = this;
+        console.log("Setting polling with " + this._pollIntervalMS);
         poller(function (_) {
+            console.log("Checking the feed");
             rp(_this._feedUrl)
                 .then(function (xml) {
-                console.log("Downloaded XML...");
-                _this.feedSubject.next(_this._parseXML(xml));
+                var parsed = _this._parseXML(xml);
+                console.log("Downloaded XML file " + (new Date(parsed.fetchDate)).toLocaleString());
+                _this.feedSubject.next(parsed);
+            })["catch"](function (error) {
+                console.log("Error downloading from URL: " + _this._feedUrl);
             });
-        }, 43200000).run();
+        }, this._pollIntervalMS).run();
     };
     FeedScrapper.prototype._parseXML = function (xmlData) {
         var xml = parser(xmlData);
@@ -28,11 +35,10 @@ var FeedScrapper = /** @class */ (function () {
         feedData.data = new Array();
         feedData.name = xml.root.children
             .filter(function (elem) { return elem.name == "title"; })[0].content;
-        feedData.lastUpdate = Date.now();
+        feedData.fetchDate = Date.now();
         xml.root.children.filter(function (elem) { return elem.name == "entry"; })
             .forEach(function (elem) {
             var entry = {};
-            entry.localUrl = undefined;
             entry.remoteUrl = elem.children
                 .filter(function (elem) { return elem.name == "link"; })[0]
                 .attributes["href"];
@@ -57,7 +63,7 @@ var FeedScrapper = /** @class */ (function () {
                         entry.description = elem.content;
                 }
             });
-            console.log("Parsed: " + entry.name);
+            console.log("Parsed " + entry.name + " from " + feedData.name);
             feedData.data.push(entry);
         });
         return feedData;

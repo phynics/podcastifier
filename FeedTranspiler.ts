@@ -1,62 +1,59 @@
 import * as ydl from "ytdl-core";
 import * as fs from "graceful-fs";
-import * as ffmpeg from "ffmpeg";
-import { FeedData, FeedEntry } from "./FeedData";
+import * as ffmpeg from "fluent-ffmpeg";
+
+import { Readable } from "stream";
+import { ParsedFeedData, ParsedFeedEntry } from "./FeedData";
 import { FeedScrapper } from "./FeedScrapper";
 import { Observable, Observer } from "rxjs";
 
+interface TranspilePayload {
+    stream: Readable,
+    name: string
+}
+
 export class FeedTranspiler {
-    private static _kTmpDir: string = "tmp/";
-    private static _kStoDir: string = "storage/";
     private _download: Observable<string>;
-    
+
     constructor(
-        private _scrapper: FeedScrapper,
+        private _downloadFeed: Observable<ParsedFeedData>,
         private _kTmpDir: string = "tmp/",
         private _kStoDir: string = "storage/"
     ) {
-        this._download = _scrapper.feedSubject
-            .flatMap((value: FeedData, index: number) => {
-                return Observable.create((observer: Observer<string>) => {
-                    var x = 0, y = 0;
-                    value.data.slice(0,1).forEach(element => {
-                        x++;
+        this._download = _downloadFeed
+            .flatMap((value: ParsedFeedData, index: number) => {
+                return Observable.create((observer: Observer<TranspilePayload>) => {
+                    value.data.slice(0, 1).forEach(element => {
                         console.log("Starting download for " + element.name);
-                        var vid = ydl(element.remoteUrl);
-                        vid.pipe(fs.createWriteStream(FeedTranspiler._kTmpDir + element.id));
-                        vid.on('finish', () => {
-                            observer.next(element.id);
-                            y++;
-                            if( x == y ) {
-                                observer.complete();
-                            }
-                        });
+                        var payload: TranspilePayload = {
+                            stream: ydl(element.remoteUrl),
+                            name: element.id
+                        };
+                        observer.next(payload);
+                        observer.complete();
                     });
                 });
             })
-            .flatMap((value: string, index: number) => {
+            .flatMap((value: TranspilePayload, index: number) => {
                 return Observable.create((observer: Observer<string>) => {
-                    console.log("Transpiling " + value);
-                    var transpiler = ffmpeg(FeedTranspiler._kTmpDir + value);
-                    transpiler.then(function (video) {
-                        // Callback mode
-                        video.fnExtractSoundToMP3(FeedTranspiler._kStoDir + value, function (error, file) {
-                            if (!error) {
-                                console.log('Audio id: ' + value);
-                                observer.next(file);
-                                observer.complete();
-                            } else {
-                                observer.error(JSON.stringify(error));
-                                observer.complete();
-                            }
+                    console.log("Transpiling from stream");
+                    var transpiler = ffmpeg(value.stream)
+                        .withNoVideo()
+                        .audioBitrate('256k')
+                        .audioCodec('libmp3lame')
+                        .audioChannels(2)
+                        .format('mp3')
+                        .output(this._kStoDir + value.name + ".mp3")
+                        .on('end', function (video) {
+                            observer.next(this._kStoDir + value.name);
+                            observer.complete();
                         });
-                    });
-                });
+                    transpiler.run();
 
+                });
             });
-        this._download.subscribe((value:string) => {
-            fs.unlink(FeedTranspiler._kTmpDir + value, () => {});
-            console.log("completed: " + value);
+        this._download.subscribe((value: string) => {
+            console.log("Completed traspile " + value);
         });
     }
 }

@@ -3,39 +3,42 @@ import * as rp from "request-promise-native";
 import * as parser from "xml-parser";
 import * as poller from "async-polling";
 
-import { FeedData, FeedEntry } from "./FeedData";
+import { ParsedFeedData, ParsedFeedEntry } from "./FeedData";
 
 export class FeedScrapper {
-    public feedSubject: rxjs.ReplaySubject<FeedData>;
+    public feedSubject: rxjs.ReplaySubject<ParsedFeedData>;
 
     constructor(
         private _feedName: string,
         private _feedUrl: string,
+        private _pollIntervalMS: number = 43200000
     ) {
-        this.feedSubject = new rxjs.ReplaySubject<FeedData>(1);
-        this.feedSubject.subscribe(() => console.log("Subject emmited"));
+        this.feedSubject = new rxjs.ReplaySubject<ParsedFeedData>(1);
+        this.feedSubject.subscribe(() => console.log("Fetched new XML file"));
         this._fetchFeed();
     }
 
     private _fetchFeed() {
+        console.log("Setting polling with " + this._pollIntervalMS)
         poller(_ => {
+            console.log("Checking the feed")
             rp(this._feedUrl)
             .then((xml: string) => {
-                var parsed: FeedData = this._parseXML(xml);
-                console.log("Downloaded XML file " + parsed.fetchDate.toLocaleString());
+                var parsed: ParsedFeedData = this._parseXML(xml);
+                console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 this.feedSubject.next(parsed);
             })
             .catch((error) => {
                 console.log("Error downloading from URL: " + this._feedUrl);
             })
             ;
-        }, 43200000).run();
+        }, this._pollIntervalMS).run();
     }
 
-    public _parseXML(xmlData: string): FeedData {
+    public _parseXML(xmlData: string): ParsedFeedData {
         var xml = parser(xmlData);
-        var feedData = {} as FeedData;
-        feedData.data = new Array<FeedEntry>();
+        var feedData = {} as ParsedFeedData;
+        feedData.data = new Array<ParsedFeedEntry>();
 
         feedData.name = xml.root.children
             .filter(elem => elem.name == "title")
@@ -45,7 +48,7 @@ export class FeedScrapper {
 
         xml.root.children.filter(elem => elem.name == "entry")
             .forEach(elem => {
-                var entry = {} as FeedEntry;
+                var entry = {} as ParsedFeedEntry;
                 entry.remoteUrl = elem.children
                     .filter(elem => elem.name == "link")[0]
                     .attributes["href"];
@@ -70,7 +73,7 @@ export class FeedScrapper {
                                 entry.description = elem.content;
                         }
                     });
-                console.log("Parsed" + entry.name + " from " + feedData.name);
+                console.log("Parsed " + entry.name + " from " + feedData.name);
                 feedData.data.push(entry);
             });
 
