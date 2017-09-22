@@ -10,7 +10,6 @@
     "@types/node": "^8.0.28",
     "@types/podcast": "^0.1.28",
     "@types/xml-parser": "^1.2.29",
-    "async-polling": "^0.2.1",
     "express": "^4.15.4",
     "fluent-ffmpeg": "^2.1.2",
     "graceful-fs": "^4.1.11",

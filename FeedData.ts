@@ -7,15 +7,11 @@ export interface ParsedFeedEntry {
     update: string;
     image: string;
     remoteUrl: string;
+    localPath: string;
 }
 
 export interface ParsedFeedData{
     name: string;
     fetchDate: number;
     data: ParsedFeedEntry[];
-}
-
-export interface IdMap {
-    id: string;
-    path: string;
 }
