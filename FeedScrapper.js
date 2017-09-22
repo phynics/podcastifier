@@ -22,7 +22,7 @@ var FeedScrapper = /** @class */ (function () {
             rp(_this._feedUrl)
                 .then(function (xml) {
                 var parsed = _this._parseXML(xml);
-                console.log("Downloaded XML file " + (new Date(parsed.fetchDate)).toLocaleString());
+                console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 _this.feedSubject.next(parsed);
             })["catch"](function (error) {
                 console.log("Error downloading from URL: " + _this._feedUrl);
@@ -36,7 +36,7 @@ var FeedScrapper = /** @class */ (function () {
         feedData.name = xml.root.children
             .filter(function (elem) { return elem.name == "title"; })[0].content;
         feedData.fetchDate = Date.now();
-        xml.root.children.filter(function (elem) { return elem.name == "entry"; })
+        xml.root.children.filter(function (elem) { return elem.name == "entry"; }).slice(0, 5)
             .forEach(function (elem) {
             var entry = {};
             entry.remoteUrl = elem.children

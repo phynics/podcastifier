@@ -46,7 +46,7 @@ export class FeedScrapper {
 
         feedData.fetchDate = Date.now();
 
-        xml.root.children.filter(elem => elem.name == "entry")
+        xml.root.children.filter(elem => elem.name == "entry").slice(0,5)
             .forEach(elem => {
                 var entry = {} as ParsedFeedEntry;
                 entry.remoteUrl = elem.children

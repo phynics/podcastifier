@@ -4,17 +4,15 @@ var ydl = require("ytdl-core");
 var ffmpeg = require("fluent-ffmpeg");
 var rxjs_1 = require("rxjs");
 var FeedTranspiler = /** @class */ (function () {
-    function FeedTranspiler(_scrapper, _kTmpDir, _kStoDir) {
-        if (_kTmpDir === void 0) { _kTmpDir = "tmp/"; }
+    function FeedTranspiler(_downloadFeed, _kStoDir) {
         if (_kStoDir === void 0) { _kStoDir = "storage/"; }
         var _this = this;
-        this._scrapper = _scrapper;
-        this._kTmpDir = _kTmpDir;
+        this._downloadFeed = _downloadFeed;
         this._kStoDir = _kStoDir;
-        this._download = _scrapper.feedSubject
+        this.downloadFeed = _downloadFeed
             .flatMap(function (value, index) {
             return rxjs_1.Observable.create(function (observer) {
-                value.data.slice(0, 1).forEach(function (element) {
+                value.data.forEach(function (element) {
                     console.log("Starting download for " + element.name);
                     var payload = {
                         stream: ydl(element.remoteUrl),
@@ -36,14 +34,14 @@ var FeedTranspiler = /** @class */ (function () {
                     .format('mp3')
                     .output(_this._kStoDir + value.name + ".mp3")
                     .on('end', function (video) {
-                    observer.next(this._kStoDir + value.name + ".mp3");
+                    observer.next(value.name);
                     observer.complete();
                 });
                 transpiler.run();
             });
-        });
-        this._download.subscribe(function (value) {
-            console.log("Completed traspile " + value);
+        })
+            .map(function (value, _) {
+            return { id: value, path: _this._kStoDir + value + ".mp3" };
         });
     }
     return FeedTranspiler;

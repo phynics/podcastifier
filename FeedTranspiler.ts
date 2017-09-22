@@ -3,7 +3,7 @@ import * as fs from "graceful-fs";
 import * as ffmpeg from "fluent-ffmpeg";
 
 import { Readable } from "stream";
-import { ParsedFeedData, ParsedFeedEntry } from "./FeedData";
+import { ParsedFeedData, ParsedFeedEntry, IdMap } from "./FeedData";
 import { FeedScrapper } from "./FeedScrapper";
 import { Observable, Observer } from "rxjs";
 
@@ -13,17 +13,17 @@ interface TranspilePayload {
 }
 
 export class FeedTranspiler {
-    private _download: Observable<string>;
+    public downloadFeed: Observable<IdMap>;
 
     constructor(
         private _downloadFeed: Observable<ParsedFeedData>,
-        private _kTmpDir: string = "tmp/",
         private _kStoDir: string = "storage/"
-    ) {
-        this._download = _downloadFeed
+    ) 
+    {
+        this.downloadFeed = _downloadFeed
             .flatMap((value: ParsedFeedData, index: number) => {
                 return Observable.create((observer: Observer<TranspilePayload>) => {
-                    value.data.slice(0, 1).forEach(element => {
+                    value.data.forEach(element => {
                         console.log("Starting download for " + element.name);
                         var payload: TranspilePayload = {
                             stream: ydl(element.remoteUrl),
@@ -45,15 +45,15 @@ export class FeedTranspiler {
                         .format('mp3')
                         .output(this._kStoDir + value.name + ".mp3")
                         .on('end', function (video) {
-                            observer.next(this._kStoDir + value.name);
+                            observer.next(value.name);
                             observer.complete();
                         });
                     transpiler.run();
 
                 });
+            })
+            .map((value: string, _) => {
+                return {id: value, path: this._kStoDir + value + ".mp3"} as IdMap;
             });
-        this._download.subscribe((value: string) => {
-            console.log("Completed traspile " + value);
-        });
     }
 }

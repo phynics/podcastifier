@@ -15,10 +15,7 @@ export interface ParsedFeedData{
     data: ParsedFeedEntry[];
 }
 
-export interface FilledFeedEntry extends ParsedFeedEntry {
-    localUrl: string;
-}
-
-export interface FilledFeedData extends FilledFeedEntry {
-    data: FilledFeedEntry[];
+export interface IdMap {
+    id: string;
+    path: string;
 }
