@@ -1,34 +1,35 @@
 import { ReplaySubject, Observable } from "rxjs";
 import {
-    ParsedFeedData,
-    ParsedFeedEntry
-} from "./FeedData";
+    PodcastFeed,
+    PodcastFeedEntry
+} from "./Models";
 import * as podcast from "podcast";
 
 export class PodFeedGenerator {
-
-    public podFilledFeed: ReplaySubject<string>;
+    public xmlPodcastFeed: ReplaySubject<string>;
 
     constructor(
-        private _transpileFeed: Observable<ParsedFeedData>,
-        private _hostName: string,
-        private _feedName: string
+        private _transpileFeed: Observable<PodcastFeed>,
+        private _hostName: string
     ) {
-        this.podFilledFeed = new ReplaySubject(1);
-        _transpileFeed.subscribe((df: ParsedFeedData) => {
+        this.xmlPodcastFeed = new ReplaySubject(1);
+        _transpileFeed.subscribe((df: PodcastFeed) => {
                 console.log("Generating an XML file...")
-                this.podFilledFeed.next(this._generateXml(df));
+                this.xmlPodcastFeed.next(this._generateXml(df));
             }
         );
     }
 
-    private _generateXml(feed: ParsedFeedData): string {
+    private _generateXml(feed: PodcastFeed): string {
 
         let podcastOptions: IFeedOptions = {
-            title: feed.name,
-            feed_url: this._feedName,
+            title: feed.title,
+            description: feed.description,
+            author: feed.author,
+            itunesSubtitle: feed.itunesSubtitle,
+            itunesImage: feed.itunesImage,
             site_url: this._hostName,
-            author: "@Fan"
+            feed_url: this._hostName + "/feeds/" + feed.id + "/podcast.xml"
 
         } as IFeedOptions;
         console.log(JSON.stringify(podcastOptions));

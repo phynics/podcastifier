@@ -3,25 +3,25 @@ import * as fs from "fs";
 import * as ffmpeg from "fluent-ffmpeg";
 
 import { Readable } from "stream";
-import { ParsedFeedData, ParsedFeedEntry } from "./FeedData";
+import { PodcastFeed, PodcastFeedEntry } from "./Models";
 import { FeedScrapper } from "./FeedScrapper";
 import { Observable, Observer, ConnectableObservable, ReplaySubject } from "rxjs";
 
 export class FeedTranspiler {
-    public downloadFeed: ReplaySubject<ParsedFeedData>;
+    public downloadFeed: ReplaySubject<PodcastFeed>;
 
     constructor(
-        private _xmlFeed: Observable<ParsedFeedData>,
+        private _xmlFeed: Observable<PodcastFeed>,
         private _kStoDir: string = "storage/"
     ) {
         this.downloadFeed = new ReplaySubject(1);
-        _xmlFeed.subscribe((value: ParsedFeedData) => {
-            let dataObservables: Observable<ParsedFeedEntry>[] = new Array<Observable<ParsedFeedEntry>>();
+        _xmlFeed.subscribe((value: PodcastFeed) => {
+            let dataObservables: Observable<PodcastFeedEntry>[] = new Array<Observable<PodcastFeedEntry>>();
             value.data.forEach(element => {
                 let exists = fs.existsSync(this._pathBuilder(element.id));
-                let entry: ParsedFeedEntry;
+                let entry: PodcastFeedEntry;
 
-                var obs: Observable<ParsedFeedEntry> = new Observable((observer) => {
+                var obs: Observable<PodcastFeedEntry> = new Observable((observer) => {
                     if (exists) {
                         //filefound therefore 
                         console.log("Found " + element.name + ", skipping download.");
@@ -42,7 +42,7 @@ export class FeedTranspiler {
                 dataObservables.push(obs);
             });
             Observable.forkJoin(dataObservables).subscribe((data) => {
-                var payload: ParsedFeedData = Object.assign({}, value);
+                var payload: PodcastFeed = Object.assign({}, value);
                 payload.data = data;
                 this.downloadFeed.next(payload);
             });
@@ -53,9 +53,9 @@ export class FeedTranspiler {
         return this._kStoDir + entryId + ".mp3";
     }
 
-    private _transpilePayload(stream: Readable, entry: ParsedFeedEntry): Observable<ParsedFeedEntry> {
+    private _transpilePayload(stream: Readable, entry: PodcastFeedEntry): Observable<PodcastFeedEntry> {
         let path = this._pathBuilder(entry.id);
-        let obs: ConnectableObservable<ParsedFeedEntry> = Observable.create((observer: Observer<ParsedFeedEntry>) => {
+        let obs: ConnectableObservable<PodcastFeedEntry> = Observable.create((observer: Observer<PodcastFeedEntry>) => {
             console.log("Transpiling %a ", entry.name);
             let transpiler = ffmpeg(stream)
                 .withNoVideo()

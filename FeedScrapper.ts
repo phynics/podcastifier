@@ -2,17 +2,20 @@ import * as rxjs from "rxjs";
 import * as rp from "request-promise-native";
 import * as parser from "xml-parser";
 
-import { ParsedFeedData, ParsedFeedEntry } from "./FeedData";
+import { 
+    Podcast,
+    PodcastFeedEntry,
+    PodcastFeed
+} from "./Models";
 
 export class FeedScrapper {
-    public feedSubject: rxjs.ReplaySubject<ParsedFeedData>;
+    public feedSubject: rxjs.ReplaySubject<PodcastFeed>;
 
     constructor(
-        private _feedName: string,
-        private _feedUrl: string,
+        private _podcast: Podcast,
         private _pollIntervalMS: number = 43200000
     ) {
-        this.feedSubject = new rxjs.ReplaySubject<ParsedFeedData>(1);
+        this.feedSubject = new rxjs.ReplaySubject<PodcastFeed>(1);
         this.feedSubject.subscribe(() => console.log("Fetched new XML file"));
         this._fetchFeed();
     }
@@ -20,20 +23,20 @@ export class FeedScrapper {
     private _fetchFeed() {
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.")
         rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(_ => {
-            console.log("Checking the feed " + this._feedUrl);
-            rp(this._feedUrl)
+            console.log("Checking the feed " + this._podcast.youtubeUrl);
+            rp(this._podcast.youtubeUrl)
             .then((xml: string) => {
-                let parsed: ParsedFeedData = this._parseXML(xml);
+                let parsed: PodcastFeed = this._parseXML(xml);
                 console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 this.feedSubject.next(parsed);
             });
         });
     }
 
-    private _parseXML(xmlData: string): ParsedFeedData {
+    private _parseXML(xmlData: string): PodcastFeed {
         let xml = parser(xmlData);
-        let feedData = {} as ParsedFeedData;
-        feedData.data = new Array<ParsedFeedEntry>();
+        let feedData = {} as PodcastFeed;
+        feedData.data = new Array<PodcastFeedEntry>();
 
         feedData.name = xml.root.children
             .filter(elem => elem.name == "title")
@@ -43,15 +46,12 @@ export class FeedScrapper {
 
         xml.root.children.filter(elem => elem.name == "entry").slice(0,1)
             .forEach(elem => {
-                let entry = {} as ParsedFeedEntry;
+                let entry = {} as PodcastFeedEntry;
                 entry.remoteUrl = elem.children
                     .filter(elem => elem.name == "link")[0]
                     .attributes["href"];
                 entry.date = elem.children
                     .filter(elem => elem.name == "published")[0]
-                    .content;
-                entry.update = elem.children
-                    .filter(elem => elem.name == "updated")[0]
                     .content;
                 entry.id = elem.children
                     .filter(elem => elem.name == "yt:videoId")[0]

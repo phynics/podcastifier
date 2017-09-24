@@ -14,4 +14,4 @@ let FS = new FeedScrapper("gkypr","http://www.youtube.com/feeds/videos.xml?chann
 let FT = new FeedTranspiler(FS.feedSubject);
 let PFG = new PodFeedGenerator(FT.downloadFeed, "http://localhost:8080/", "podcast");
 let i = 0;
-PFG.podFilledFeed.subscribe((item) => fs.writeFile(("current" + (i++) + ".xml"),item, () => {}));
+PFG.xmlPodcastFeed.subscribe((item) => fs.writeFile(("current" + (i++) + ".xml"),item, () => {}));
