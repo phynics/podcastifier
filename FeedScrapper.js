@@ -3,7 +3,6 @@ exports.__esModule = true;
 var rxjs = require("rxjs");
 var rp = require("request-promise-native");
 var parser = require("xml-parser");
-var poller = require("async-polling");
 var FeedScrapper = /** @class */ (function () {
     function FeedScrapper(_feedName, _feedUrl, _pollIntervalMS) {
         if (_pollIntervalMS === void 0) { _pollIntervalMS = 43200000; }
@@ -16,18 +15,16 @@ var FeedScrapper = /** @class */ (function () {
     }
     FeedScrapper.prototype._fetchFeed = function () {
         var _this = this;
-        console.log("Setting polling with " + this._pollIntervalMS);
-        poller(function (_) {
-            console.log("Checking the feed");
+        console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
+        rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(function (_) {
+            console.log("Checking the feed " + _this._feedUrl);
             rp(_this._feedUrl)
                 .then(function (xml) {
                 var parsed = _this._parseXML(xml);
                 console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 _this.feedSubject.next(parsed);
-            })["catch"](function (error) {
-                console.log("Error downloading from URL: " + _this._feedUrl);
             });
-        }, this._pollIntervalMS).run();
+        });
     };
     FeedScrapper.prototype._parseXML = function (xmlData) {
         var xml = parser(xmlData);
@@ -36,7 +33,7 @@ var FeedScrapper = /** @class */ (function () {
         feedData.name = xml.root.children
             .filter(function (elem) { return elem.name == "title"; })[0].content;
         feedData.fetchDate = Date.now();
-        xml.root.children.filter(function (elem) { return elem.name == "entry"; }).slice(0, 5)
+        xml.root.children.filter(function (elem) { return elem.name == "entry"; }).slice(0, 1)
             .forEach(function (elem) {
             var entry = {};
             entry.remoteUrl = elem.children

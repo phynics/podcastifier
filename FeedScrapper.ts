@@ -20,17 +20,13 @@ export class FeedScrapper {
     private _fetchFeed() {
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.")
         rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(_ => {
-            console.log("Checking the feed")
+            console.log("Checking the feed " + this._feedUrl);
             rp(this._feedUrl)
             .then((xml: string) => {
                 let parsed: ParsedFeedData = this._parseXML(xml);
                 console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 this.feedSubject.next(parsed);
-            })
-            .catch((error) => {
-                console.log("Error downloading from URL: " + this._feedUrl);
-            })
-            ;
+            });
         });
     }
 
@@ -45,7 +41,7 @@ export class FeedScrapper {
 
         feedData.fetchDate = Date.now();
 
-        xml.root.children.filter(elem => elem.name == "entry").slice(0,5)
+        xml.root.children.filter(elem => elem.name == "entry").slice(0,1)
             .forEach(elem => {
                 let entry = {} as ParsedFeedEntry;
                 entry.remoteUrl = elem.children

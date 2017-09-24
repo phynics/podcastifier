@@ -1,5 +1,5 @@
 import * as ydl from "ytdl-core";
-import * as fs from "graceful-fs";
+import * as fs from "fs";
 import * as ffmpeg from "fluent-ffmpeg";
 
 import { Readable } from "stream";
@@ -15,7 +15,7 @@ export class FeedTranspiler {
         private _kStoDir: string = "storage/"
     ) {
         this.downloadFeed = new ReplaySubject(1);
-        _xmlFeed.map((value: ParsedFeedData, index: number) => {
+        _xmlFeed.flatMap((value: ParsedFeedData, index: number): Observable<ParsedFeedData> => {
             return Observable.create((observer: Observer<ParsedFeedData>) => {
                 let obs: Observable<ParsedFeedEntry>[] = new Array<Observable<ParsedFeedEntry>>();
                 let payload = {...value} as ParsedFeedData;
@@ -50,7 +50,9 @@ export class FeedTranspiler {
                     }
                 });
             });
-        }).subscribe((value) => this.downloadFeed.next(value));
+        }).subscribe((value) => {
+            this.downloadFeed.next(value);
+        });
     }
 
     private _pathBuilder(entryId: string){
