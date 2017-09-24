@@ -15,47 +15,41 @@ export class FeedTranspiler {
         private _kStoDir: string = "storage/"
     ) {
         this.downloadFeed = new ReplaySubject(1);
-        _xmlFeed.flatMap((value: ParsedFeedData, index: number): Observable<ParsedFeedData> => {
-            return Observable.create((observer: Observer<ParsedFeedData>) => {
-                let obs: Observable<ParsedFeedEntry>[] = new Array<Observable<ParsedFeedEntry>>();
-                let payload = {...value} as ParsedFeedData;
-                payload.data = new Array<ParsedFeedEntry>();
-                var count = value.data.length, completed=0;
-                value.data.forEach(element => {
-                    let exists = fs.existsSync(this._pathBuilder(element.id));
-                    let entry: ParsedFeedEntry;
+        _xmlFeed.subscribe((value: ParsedFeedData) => {
+            let dataObservables: Observable<ParsedFeedEntry>[] = new Array<Observable<ParsedFeedEntry>>();
+            value.data.forEach(element => {
+                let exists = fs.existsSync(this._pathBuilder(element.id));
+                let entry: ParsedFeedEntry;
+
+                var obs: Observable<ParsedFeedEntry> = new Observable((observer) => {
                     if (exists) {
                         //filefound therefore 
-                        console.log("Found "+element.name+", skipping download.");
-                        entry = {...element};
+                        console.log("Found " + element.name + ", skipping download.");
+                        entry = { ...element };
                         entry.localPath = this._pathBuilder(element.id);
-                        payload.data.push(entry);
-                        completed++;
-                        if(completed == count) {
-                            observer.next(payload);
-                            observer.complete();
-                        }
+                        observer.next(entry);
+                        observer.complete();
                     } else {
                         console.log("Starting download for " + element.name);
                         let stream = ydl(element.remoteUrl);
                         let subs = this._transpilePayload(stream, element).subscribe((result) => {
-                            payload.data.push(result);
-                            completed++;
-                            if(completed == count) {
-                                observer.next(payload);
-                                observer.complete();
-                            }
+                            observer.next(result);
+                            observer.complete();
                             subs.unsubscribe();
                         });
                     }
                 });
+                dataObservables.push(obs);
             });
-        }).subscribe((value) => {
-            this.downloadFeed.next(value);
+            Observable.forkJoin(dataObservables).subscribe((data) => {
+                var payload: ParsedFeedData = Object.assign({}, value);
+                payload.data = data;
+                this.downloadFeed.next(payload);
+            });
         });
     }
 
-    private _pathBuilder(entryId: string){
+    private _pathBuilder(entryId: string) {
         return this._kStoDir + entryId + ".mp3";
     }
 

@@ -9,7 +9,7 @@ var __assign = (this && this.__assign) || Object.assign || function(t) {
 };
 exports.__esModule = true;
 var ydl = require("ytdl-core");
-var fs = require("graceful-fs");
+var fs = require("fs");
 var ffmpeg = require("fluent-ffmpeg");
 var rxjs_1 = require("rxjs");
 var FeedTranspiler = /** @class */ (function () {
@@ -19,44 +19,37 @@ var FeedTranspiler = /** @class */ (function () {
         this._xmlFeed = _xmlFeed;
         this._kStoDir = _kStoDir;
         this.downloadFeed = new rxjs_1.ReplaySubject(1);
-        _xmlFeed.flatMap(function (value, index) {
-            return rxjs_1.Observable.create(function (observer) {
-                var obs = new Array();
-                var payload = __assign({}, value);
-                payload.data = new Array();
-                var count = value.data.length, completed = 0;
-                value.data.forEach(function (element) {
-                    var exists = fs.existsSync(_this._pathBuilder(element.id));
-                    var entry;
+        _xmlFeed.subscribe(function (value) {
+            var dataObservables = new Array();
+            value.data.forEach(function (element) {
+                var exists = fs.existsSync(_this._pathBuilder(element.id));
+                var entry;
+                var obs = new rxjs_1.Observable(function (observer) {
                     if (exists) {
                         //filefound therefore 
                         console.log("Found " + element.name + ", skipping download.");
                         entry = __assign({}, element);
                         entry.localPath = _this._pathBuilder(element.id);
-                        payload.data.push(entry);
-                        completed++;
-                        if (completed == count) {
-                            observer.next(payload);
-                            observer.complete();
-                        }
+                        observer.next(entry);
+                        observer.complete();
                     }
                     else {
                         console.log("Starting download for " + element.name);
                         var stream = ydl(element.remoteUrl);
                         var subs_1 = _this._transpilePayload(stream, element).subscribe(function (result) {
-                            payload.data.push(result);
-                            completed++;
-                            if (completed == count) {
-                                observer.next(payload);
-                                observer.complete();
-                            }
+                            observer.next(result);
+                            observer.complete();
                             subs_1.unsubscribe();
                         });
                     }
                 });
+                dataObservables.push(obs);
             });
-        }).subscribe(function (value) {
-            _this.downloadFeed.next(value);
+            rxjs_1.Observable.forkJoin(dataObservables).subscribe(function (data) {
+                var payload = Object.assign({}, value);
+                payload.data = data;
+                _this.downloadFeed.next(payload);
+            });
         });
     }
     FeedTranspiler.prototype._pathBuilder = function (entryId) {
