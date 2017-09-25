@@ -63,11 +63,13 @@ export class FeedScrapper {
                         switch (elem.name) {
                             case "media:title":
                                 entry.name = elem.content;
+                                break;
                             case "media:thumbnail":
                                 entry.image = elem.attributes["url"];
                                 break;
                             case "media:description":
                                 entry.description = elem.content;
+                                break;
                         }
                     });
                 console.log("Parsed " + entry.name + " from " + feedData.title);
