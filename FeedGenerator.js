@@ -2,24 +2,27 @@
 exports.__esModule = true;
 var rxjs_1 = require("rxjs");
 var podcast = require("podcast");
-var PodFeedGenerator = /** @class */ (function () {
-    function PodFeedGenerator(_transpileFeed, _hostName, _feedName) {
+var FeedGenerator = /** @class */ (function () {
+    function FeedGenerator(_transpileFeed, _hostName) {
         var _this = this;
         this._transpileFeed = _transpileFeed;
         this._hostName = _hostName;
-        this._feedName = _feedName;
-        this.podFilledFeed = new rxjs_1.ReplaySubject(1);
+        this.xmlPodcastFeed = new rxjs_1.ReplaySubject(1);
         _transpileFeed.subscribe(function (df) {
             console.log("Generating an XML file...");
-            _this.podFilledFeed.next(_this._generateXml(df));
+            _this.xmlPodcastFeed.next(_this._generateXml(df));
         });
     }
-    PodFeedGenerator.prototype._generateXml = function (feed) {
+    FeedGenerator.prototype._generateXml = function (feed) {
+        var _this = this;
         var podcastOptions = {
-            title: feed.name,
-            feed_url: this._feedName,
+            title: feed.title,
+            description: feed.description,
+            author: feed.author,
+            itunesSubtitle: feed.itunesSubtitle,
+            itunesImage: feed.itunesImage,
             site_url: this._hostName,
-            author: "@Fan"
+            feed_url: this._hostName + "/feeds/" + feed.id + "/podcast.xml"
         };
         console.log(JSON.stringify(podcastOptions));
         var pod = new podcast(podcastOptions);
@@ -27,7 +30,7 @@ var PodFeedGenerator = /** @class */ (function () {
             var opts = {
                 title: element.name,
                 description: element.description,
-                url: element.localPath,
+                url: _this._hostName + "/" + element.id,
                 date: new Date(element.date),
                 enclosure: {
                     url: element.image
@@ -38,6 +41,6 @@ var PodFeedGenerator = /** @class */ (function () {
         });
         return pod.xml();
     };
-    return PodFeedGenerator;
+    return FeedGenerator;
 }());
-exports.PodFeedGenerator = PodFeedGenerator;
+exports.FeedGenerator = FeedGenerator;

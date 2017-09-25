@@ -5,7 +5,7 @@ import {
 } from "./Models";
 import * as podcast from "podcast";
 
-export class PodFeedGenerator {
+export class FeedGenerator {
     public xmlPodcastFeed: ReplaySubject<string>;
 
     constructor(
@@ -38,7 +38,7 @@ export class PodFeedGenerator {
             let opts: IItemOptions = {
                 title: element.name,
                 description: element.description,
-                url: element.localPath,
+                url: this._hostName + "/" + element.id,
                 date: new Date(element.date),
                 enclosure: {
                     url: element.image

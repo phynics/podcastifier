@@ -1,10 +1,10 @@
-import { Podcast, Config } from "./Models"
-export let Podcasts: Podcast[] = [
+"use strict";
+exports.__esModule = true;
+exports.Podcasts = [
     {
         title: "Geekyapar // Meram",
         id: "gkyprmrm",
-        description: 
-        "Geekyapar // Meram Youtube kanalı için Podcast uyumlu akış. \
+        description: "Geekyapar // Meram Youtube kanalı için Podcast uyumlu akış. \
         \nAkış son 3 videonun ses dosyalarını içerir.",
         author: "Meramfer",
         itunesSubtitle: "Geekyapar // Meram Youtube kanalı için Podcast akışı.",
@@ -12,7 +12,7 @@ export let Podcasts: Podcast[] = [
         youtubeUrl: "http://www.youtube.com/feeds/videos.xml?channel_id=UCg6pmeCcngcd07afcdiF1pQ"
     }
 ];
-export let AppConfig: Config = {
+exports.AppConfig = {
     feedPath: "feeds/",
     filePath: "storage/",
     serverURL: "http://localhost",

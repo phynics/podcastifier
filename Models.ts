@@ -26,5 +26,6 @@ export interface PodcastFeedEntry {
 export interface Config {
     feedPath: string;
     filePath: string;
+    serverURL: string;
     serverPort: number;
 }

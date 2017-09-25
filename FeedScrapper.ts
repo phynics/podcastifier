@@ -16,7 +16,6 @@ export class FeedScrapper {
         private _pollIntervalMS: number = 43200000
     ) {
         this.feedSubject = new rxjs.ReplaySubject<PodcastFeed>(1);
-        this.feedSubject.subscribe(() => console.log("Fetched new XML file"));
         this._fetchFeed();
     }
 
@@ -29,6 +28,9 @@ export class FeedScrapper {
                 let parsed: PodcastFeed = this._parseXML(xml);
                 console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 this.feedSubject.next(parsed);
+            })
+            .catch((error) => {
+                console.log(error.message);
             });
         });
     }
@@ -38,13 +40,13 @@ export class FeedScrapper {
         let feedData = {} as PodcastFeed;
         feedData.data = new Array<PodcastFeedEntry>();
 
-        feedData.name = xml.root.children
-            .filter(elem => elem.name == "title")
-        [0].content;
+        feedData.title = xml.root.children
+            .filter(elem => elem.name == "title")[0]
+            .content;
 
         feedData.fetchDate = Date.now();
 
-        xml.root.children.filter(elem => elem.name == "entry").slice(0,1)
+        xml.root.children.filter(elem => elem.name == "entry").slice(0,3)
             .forEach(elem => {
                 let entry = {} as PodcastFeedEntry;
                 entry.remoteUrl = elem.children
@@ -68,7 +70,7 @@ export class FeedScrapper {
                                 entry.description = elem.content;
                         }
                     });
-                console.log("Parsed " + entry.name + " from " + feedData.name);
+                console.log("Parsed " + entry.name + " from " + feedData.title);
                 feedData.data.push(entry);
             });
 

@@ -4,25 +4,25 @@ var rxjs = require("rxjs");
 var rp = require("request-promise-native");
 var parser = require("xml-parser");
 var FeedScrapper = /** @class */ (function () {
-    function FeedScrapper(_feedName, _feedUrl, _pollIntervalMS) {
+    function FeedScrapper(_podcast, _pollIntervalMS) {
         if (_pollIntervalMS === void 0) { _pollIntervalMS = 43200000; }
-        this._feedName = _feedName;
-        this._feedUrl = _feedUrl;
+        this._podcast = _podcast;
         this._pollIntervalMS = _pollIntervalMS;
         this.feedSubject = new rxjs.ReplaySubject(1);
-        this.feedSubject.subscribe(function () { return console.log("Fetched new XML file"); });
         this._fetchFeed();
     }
     FeedScrapper.prototype._fetchFeed = function () {
         var _this = this;
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
         rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(function (_) {
-            console.log("Checking the feed " + _this._feedUrl);
-            rp(_this._feedUrl)
+            console.log("Checking the feed " + _this._podcast.youtubeUrl);
+            rp(_this._podcast.youtubeUrl)
                 .then(function (xml) {
                 var parsed = _this._parseXML(xml);
                 console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 _this.feedSubject.next(parsed);
+            })["catch"](function (error) {
+                console.log(error.message);
             });
         });
     };
@@ -30,10 +30,11 @@ var FeedScrapper = /** @class */ (function () {
         var xml = parser(xmlData);
         var feedData = {};
         feedData.data = new Array();
-        feedData.name = xml.root.children
-            .filter(function (elem) { return elem.name == "title"; })[0].content;
+        feedData.title = xml.root.children
+            .filter(function (elem) { return elem.name == "title"; })[0]
+            .content;
         feedData.fetchDate = Date.now();
-        xml.root.children.filter(function (elem) { return elem.name == "entry"; }).slice(0, 1)
+        xml.root.children.filter(function (elem) { return elem.name == "entry"; }).slice(0, 3)
             .forEach(function (elem) {
             var entry = {};
             entry.remoteUrl = elem.children
@@ -41,9 +42,6 @@ var FeedScrapper = /** @class */ (function () {
                 .attributes["href"];
             entry.date = elem.children
                 .filter(function (elem) { return elem.name == "published"; })[0]
-                .content;
-            entry.update = elem.children
-                .filter(function (elem) { return elem.name == "updated"; })[0]
                 .content;
             entry.id = elem.children
                 .filter(function (elem) { return elem.name == "yt:videoId"; })[0]
@@ -60,7 +58,7 @@ var FeedScrapper = /** @class */ (function () {
                         entry.description = elem.content;
                 }
             });
-            console.log("Parsed " + entry.name + " from " + feedData.name);
+            console.log("Parsed " + entry.name + " from " + feedData.title);
             feedData.data.push(entry);
         });
         return feedData;

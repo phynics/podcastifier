@@ -42,7 +42,7 @@ export class FeedTranspiler {
                 dataObservables.push(obs);
             });
             Observable.forkJoin(dataObservables).subscribe((data) => {
-                var payload: PodcastFeed = Object.assign({}, value);
+                var payload: PodcastFeed = {...value};
                 payload.data = data;
                 this.downloadFeed.next(payload);
             });
@@ -56,7 +56,7 @@ export class FeedTranspiler {
     private _transpilePayload(stream: Readable, entry: PodcastFeedEntry): Observable<PodcastFeedEntry> {
         let path = this._pathBuilder(entry.id);
         let obs: ConnectableObservable<PodcastFeedEntry> = Observable.create((observer: Observer<PodcastFeedEntry>) => {
-            console.log("Transpiling %a ", entry.name);
+            console.log("Transpiling ", entry.name);
             let transpiler = ffmpeg(stream)
                 .withNoVideo()
                 .audioBitrate('256k')
@@ -64,7 +64,10 @@ export class FeedTranspiler {
                 .audioChannels(2)
                 .format('mp3')
                 .output(path)
-                .on('end', function (video) {
+                .on('info', (arg) => {
+                    console.log(JSON.stringify(arg));
+                })
+                .on('end', (video) => {
                     let payload = { ...entry };
                     payload.localPath = path;
                     observer.next(payload);

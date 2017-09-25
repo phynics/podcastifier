@@ -46,7 +46,7 @@ var FeedTranspiler = /** @class */ (function () {
                 dataObservables.push(obs);
             });
             rxjs_1.Observable.forkJoin(dataObservables).subscribe(function (data) {
-                var payload = Object.assign({}, value);
+                var payload = __assign({}, value);
                 payload.data = data;
                 _this.downloadFeed.next(payload);
             });
@@ -58,7 +58,7 @@ var FeedTranspiler = /** @class */ (function () {
     FeedTranspiler.prototype._transpilePayload = function (stream, entry) {
         var path = this._pathBuilder(entry.id);
         var obs = rxjs_1.Observable.create(function (observer) {
-            console.log("Transpiling %a ", entry.name);
+            console.log("Transpiling ", entry.name);
             var transpiler = ffmpeg(stream)
                 .withNoVideo()
                 .audioBitrate('256k')
@@ -66,6 +66,9 @@ var FeedTranspiler = /** @class */ (function () {
                 .audioChannels(2)
                 .format('mp3')
                 .output(path)
+                .on('info', function (arg) {
+                console.log(JSON.stringify(arg));
+            })
                 .on('end', function (video) {
                 var payload = __assign({}, entry);
                 payload.localPath = path;
