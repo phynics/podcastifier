@@ -40,7 +40,10 @@ export class Podcastifier {
 
         exp.get("/", (req, res) => {
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
-                + this._podcasts.map((value) => value.title).join("<br>"));
+                + this._podcasts.map((value) => {
+                    return "<a href=\"" + this._configuration.serverURL+":"+this._configuration.serverPort+"/feeds/"+value.id+"/podcast.xml\">"
+                + value.title + "</a>";
+            }).join("<br>"));
         });
         exp.get("/feeds/:podcastid/podcast.xml", (req, res) => {
             var podcastId: string = req.params["podcastid"];

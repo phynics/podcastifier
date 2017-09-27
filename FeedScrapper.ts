@@ -2,7 +2,7 @@ import * as rxjs from "rxjs";
 import * as rp from "request-promise-native";
 import * as parser from "xml-parser";
 
-import { 
+import {
     Podcast,
     PodcastFeedEntry,
     PodcastFeed
@@ -25,30 +25,33 @@ export class FeedScrapper {
         rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(_ => {
             console.log("Checking the feed " + this._podcast.youtubeUrl);
             rp(this._podcast.youtubeUrl)
-            .then((xml: string) => {
-                let parsed: PodcastFeed = this._parseXML(xml);
-                console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
-                this.feedSubject.next(parsed);
-            })
-            .catch((error) => {
-                console.log(error.message);
-            });
+                .then((xml: string) => {
+                    let parsed: PodcastFeed = this._parseXML(xml);
+                    console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
+                    this.feedSubject.next(parsed);
+                })
+                .catch((error) => {
+                    console.log(error.message);
+                });
         });
     }
 
     private _parseXML(xmlData: string): PodcastFeed {
         let xml = parser(xmlData);
-        let feedData = {} as PodcastFeed;
+        let feedData = {...this._podcast} as PodcastFeed;
         feedData.data = new Array<PodcastFeedEntry>();
 
         feedData.title = xml.root.children
             .filter(elem => elem.name == "title")[0]
             .content;
+        feedData.pubDate = xml.root.children
+            .filter(elem => elem.name == "published")[0]
+            .content;
 
         feedData.fetchDate = Date.now();
 
         xml.root.children.filter(elem => elem.name == "entry")
-            .slice(0,this._backlogSize)
+            .slice(0, this._backlogSize)
             .forEach(elem => {
                 let entry = {} as PodcastFeedEntry;
                 entry.remoteUrl = elem.children
@@ -68,6 +71,7 @@ export class FeedScrapper {
                                 break;
                             case "media:thumbnail":
                                 entry.image = elem.attributes["url"];
+                                entry.image = entry.image.replace("hqdefault.jpg", "maxresdefault.jpg");
                                 break;
                             case "media:description":
                                 entry.description = elem.content;

@@ -1,15 +1,18 @@
 export interface Podcast {
-    title: string,
-    id: string,
-    description: string,
-    author: string,
-    itunesSubtitle: string,
-    itunesImage: string,
-    youtubeUrl: string
+    title: string;
+    id: string;
+    description: string;
+    author: string;
+    itunesSubtitle: string;
+    image: string;
+    youtubeUrl: string;
+    siteUrl: string;
+    lang: string;
 }
 
 export interface PodcastFeed extends Podcast {
     fetchDate: number;
+    pubDate: string;
     data: PodcastFeedEntry[];
 }
 

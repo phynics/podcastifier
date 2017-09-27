@@ -32,7 +32,10 @@ var Podcastifier = /** @class */ (function () {
         var exp = this._expressServer;
         exp.get("/", function (req, res) {
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
-                + _this._podcasts.map(function (value) { return value.title; }).join("<br>"));
+                + _this._podcasts.map(function (value) {
+                    return "<a href=\"" + _this._configuration.serverURL + ":" + _this._configuration.serverPort + "/feeds/" + value.id + "/podcast.xml\">"
+                        + value.title + "</a>";
+                }).join("<br>"));
         });
         exp.get("/feeds/:podcastid/podcast.xml", function (req, res) {
             var podcastId = req.params["podcastid"];

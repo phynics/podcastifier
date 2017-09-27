@@ -21,30 +21,34 @@ export class FeedGenerator {
     }
 
     private _generateXml(feed: PodcastFeed): string {
-
         let podcastOptions: IFeedOptions = {
             title: feed.title,
             description: feed.description,
+            image_url: feed.image,
             author: feed.author,
+            pubDate: new Date(feed.pubDate),
             itunesSubtitle: feed.itunesSubtitle,
-            itunesImage: feed.itunesImage,
-            site_url: this._hostName,
+            itunesAuthor: feed.author,
+            itunesSummary: feed.itunesSubtitle,
+            site_url: feed.siteUrl,
+            language: feed.lang,
             feed_url: this._hostName + "/feeds/" + feed.id + "/podcast.xml"
 
-        } as IFeedOptions;
+        };
         let pod = new podcast(podcastOptions);
         feed.data.forEach(element => {
             let opts: IItemOptions = {
                 title: element.name,
                 description: element.description,
-                url: element.image,
+                url: element.remoteUrl,
                 guid: element.id,
                 date: new Date(element.date),
                 enclosure: {
                     url: this._hostName + "/" + element.id + "/ep.mp3",
                     mime: "audio/mpeg"
                 },
-                itunesImage: element.image
+                itunesImage: element.image,
+                itunesSubtitle: element.description.split("---")[0] || feed.itunesSubtitle
             } as IItemOptions;
             pod.item(opts);
         });
