@@ -18,7 +18,7 @@ var Podcastifier = /** @class */ (function () {
         this._feedScrapper = new Array();
         this._feedTranspiler = new Array();
         _podcasts.forEach(function (podcast, index) {
-            var feedS = new FeedScrapper_1.FeedScrapper(podcast);
+            var feedS = new FeedScrapper_1.FeedScrapper(podcast, _this._configuration.pollInterval, _this._configuration.backlogSize);
             _this._feedScrapper.push(feedS);
             var feedT = new FeedTranspiler_1.FeedTranspiler(feedS.feedSubject);
             _this._feedTranspiler.push(feedT);
@@ -40,7 +40,7 @@ var Podcastifier = /** @class */ (function () {
                 res.sendFile(__dirname + "/" + _this._configuration.feedPath + podcastId + ".xml");
             }
         });
-        exp.get("/:fileid", function (req, res) {
+        exp.get("/:fileid/ep.mp3", function (req, res) {
             var fileId = req.params["fileid"];
             if (fs.existsSync(__dirname + "/" + _this._configuration.filePath + fileId + ".mp3")) {
                 res.sendFile(__dirname + "/" + _this._configuration.filePath + fileId + ".mp3");

@@ -14,9 +14,9 @@ export class FeedGenerator {
     ) {
         this.xmlPodcastFeed = new ReplaySubject(1);
         _transpileFeed.subscribe((df: PodcastFeed) => {
-                console.log("Generating an XML file...")
-                this.xmlPodcastFeed.next(this._generateXml(df));
-            }
+            console.log("Generating an XML file...")
+            this.xmlPodcastFeed.next(this._generateXml(df));
+        }
         );
     }
 
@@ -32,19 +32,20 @@ export class FeedGenerator {
             feed_url: this._hostName + "/feeds/" + feed.id + "/podcast.xml"
 
         } as IFeedOptions;
-        console.log(JSON.stringify(podcastOptions));
         let pod = new podcast(podcastOptions);
         feed.data.forEach(element => {
             let opts: IItemOptions = {
                 title: element.name,
                 description: element.description,
-                url: this._hostName + "/" + element.id,
+                url: element.image,
+                guid: element.id,
                 date: new Date(element.date),
                 enclosure: {
-                    url: element.image
-                }
+                    url: this._hostName + "/" + element.id + "/ep.mp3",
+                    mime: "audio/mpeg"
+                },
+                itunesImage: element.image
             } as IItemOptions;
-            console.log(JSON.stringify(opts));
             pod.item(opts);
         });
         return pod.xml();

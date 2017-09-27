@@ -15,6 +15,8 @@ exports.Podcasts = [
 exports.AppConfig = {
     feedPath: "feeds/",
     filePath: "storage/",
-    serverURL: "http://localhost",
+    backlogSize: 3,
+    pollInterval: 43200000,
+    serverURL: "http://18.194.120.95",
     serverPort: 8080
 };

@@ -26,6 +26,8 @@ export interface PodcastFeedEntry {
 export interface Config {
     feedPath: string;
     filePath: string;
+    pollInterval:number;
+    backlogSize: number;
     serverURL: string;
     serverPort: number;
 }

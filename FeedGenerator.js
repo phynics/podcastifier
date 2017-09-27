@@ -24,19 +24,20 @@ var FeedGenerator = /** @class */ (function () {
             site_url: this._hostName,
             feed_url: this._hostName + "/feeds/" + feed.id + "/podcast.xml"
         };
-        console.log(JSON.stringify(podcastOptions));
         var pod = new podcast(podcastOptions);
         feed.data.forEach(function (element) {
             var opts = {
                 title: element.name,
                 description: element.description,
-                url: _this._hostName + "/" + element.id,
+                url: element.image,
+                guid: element.id,
                 date: new Date(element.date),
                 enclosure: {
-                    url: element.image
-                }
+                    url: _this._hostName + "/" + element.id + "/ep.mp3",
+                    mime: "audio/mpeg"
+                },
+                itunesImage: element.image
             };
-            console.log(JSON.stringify(opts));
             pod.item(opts);
         });
         return pod.xml();

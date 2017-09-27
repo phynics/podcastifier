@@ -24,7 +24,7 @@ export class Podcastifier {
         this._feedScrapper = new Array<FeedScrapper>();
         this._feedTranspiler = new Array<FeedTranspiler>();
         _podcasts.forEach((podcast, index) => {
-            let feedS = new FeedScrapper(podcast);
+            let feedS = new FeedScrapper(podcast, this._configuration.pollInterval, this._configuration.backlogSize);
             this._feedScrapper.push(feedS);
             let feedT = new FeedTranspiler(feedS.feedSubject);
             this._feedTranspiler.push(feedT);
@@ -48,7 +48,7 @@ export class Podcastifier {
                 res.sendFile(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml");
             }
         });
-        exp.get("/:fileid", (req, res) => {
+        exp.get("/:fileid/ep.mp3", (req, res) => {
             var fileId: string = req.params["fileid"];
             if (fs.existsSync(__dirname + "/" + this._configuration.filePath + fileId + ".mp3")) {
                 res.sendFile(__dirname + "/" + this._configuration.filePath + fileId + ".mp3");

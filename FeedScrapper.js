@@ -4,10 +4,12 @@ var rxjs = require("rxjs");
 var rp = require("request-promise-native");
 var parser = require("xml-parser");
 var FeedScrapper = /** @class */ (function () {
-    function FeedScrapper(_podcast, _pollIntervalMS) {
+    function FeedScrapper(_podcast, _pollIntervalMS, _backlogSize) {
         if (_pollIntervalMS === void 0) { _pollIntervalMS = 43200000; }
+        if (_backlogSize === void 0) { _backlogSize = 3; }
         this._podcast = _podcast;
         this._pollIntervalMS = _pollIntervalMS;
+        this._backlogSize = _backlogSize;
         this.feedSubject = new rxjs.ReplaySubject(1);
         this._fetchFeed();
     }
@@ -34,7 +36,8 @@ var FeedScrapper = /** @class */ (function () {
             .filter(function (elem) { return elem.name == "title"; })[0]
             .content;
         feedData.fetchDate = Date.now();
-        xml.root.children.filter(function (elem) { return elem.name == "entry"; }).slice(0, 3)
+        xml.root.children.filter(function (elem) { return elem.name == "entry"; })
+            .slice(0, this._backlogSize)
             .forEach(function (elem) {
             var entry = {};
             entry.remoteUrl = elem.children
@@ -51,11 +54,13 @@ var FeedScrapper = /** @class */ (function () {
                 switch (elem.name) {
                     case "media:title":
                         entry.name = elem.content;
+                        break;
                     case "media:thumbnail":
                         entry.image = elem.attributes["url"];
                         break;
                     case "media:description":
                         entry.description = elem.content;
+                        break;
                 }
             });
             console.log("Parsed " + entry.name + " from " + feedData.title);
