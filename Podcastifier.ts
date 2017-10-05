@@ -51,6 +51,12 @@ export class Podcastifier {
                 res.sendFile(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml");
             }
         });
+        exp.get("/finicks", (req, res) => {
+            this._feedScrapper.forEach((item) => {
+                item.forceCheck();
+            });
+            res.sendStatus(418);
+        })
         exp.get("/:fileid/ep.mp3", (req, res) => {
             var fileId: string = req.params["fileid"];
             if (fs.existsSync(__dirname + "/" + this._configuration.filePath + fileId + ".mp3")) {

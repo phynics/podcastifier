@@ -12,19 +12,26 @@ var rxjs = require("rxjs");
 var rp = require("request-promise-native");
 var parser = require("xml-parser");
 var FeedScrapper = /** @class */ (function () {
-    function FeedScrapper(_podcast, _pollIntervalMS, _backlogSize) {
+    function FeedScrapper(_podcast, _pollIntervalMS, _backlogSize, _throttleTime) {
         if (_pollIntervalMS === void 0) { _pollIntervalMS = 43200000; }
         if (_backlogSize === void 0) { _backlogSize = 3; }
+        if (_throttleTime === void 0) { _throttleTime = 600000; }
         this._podcast = _podcast;
         this._pollIntervalMS = _pollIntervalMS;
         this._backlogSize = _backlogSize;
+        this._throttleTime = _throttleTime;
         this.feedSubject = new rxjs.ReplaySubject(1);
+        this._mTrigger = new rxjs.Subject();
         this._fetchFeed();
     }
+    FeedScrapper.prototype.forceCheck = function () {
+        this._mTrigger.next(0);
+    };
     FeedScrapper.prototype._fetchFeed = function () {
         var _this = this;
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
-        rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(function (_) {
+        this._mTrigger.throttleTime(this._throttleTime)
+            .subscribe(function (_) {
             console.log("Checking the feed " + _this._podcast.youtubeUrl);
             rp(_this._podcast.youtubeUrl)
                 .then(function (xml) {
@@ -35,6 +42,7 @@ var FeedScrapper = /** @class */ (function () {
                 console.log(error.message);
             });
         });
+        rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(function (num) { return _this._mTrigger.next(num); });
     };
     FeedScrapper.prototype._parseXML = function (xmlData) {
         var xml = parser(xmlData);
@@ -48,6 +56,15 @@ var FeedScrapper = /** @class */ (function () {
             .content;
         feedData.fetchDate = Date.now();
         xml.root.children.filter(function (elem) { return elem.name == "entry"; })
+            .sort(function (a, b) {
+            var aDate = new Date(a.children
+                .filter(function (elem) { return elem.name == "published" || "pubDate"; })[0]
+                .content);
+            var bDate = new Date(b.children
+                .filter(function (elem) { return elem.name == "published" || "pubDate"; })[0]
+                .content);
+            return bDate.getTime() - aDate.getTime();
+        })
             .slice(0, this._backlogSize)
             .forEach(function (elem) {
             var entry = {};

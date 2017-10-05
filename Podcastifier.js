@@ -43,6 +43,12 @@ var Podcastifier = /** @class */ (function () {
                 res.sendFile(__dirname + "/" + _this._configuration.feedPath + podcastId + ".xml");
             }
         });
+        exp.get("/finicks", function (req, res) {
+            _this._feedScrapper.forEach(function (item) {
+                item.forceCheck();
+            });
+            res.sendStatus(418);
+        });
         exp.get("/:fileid/ep.mp3", function (req, res) {
             var fileId = req.params["fileid"];
             if (fs.existsSync(__dirname + "/" + _this._configuration.filePath + fileId + ".mp3")) {

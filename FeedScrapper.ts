@@ -10,19 +10,26 @@ import {
 
 export class FeedScrapper {
     public feedSubject: rxjs.ReplaySubject<PodcastFeed>;
-
+    private _mTrigger: rxjs.Subject<number>;
     constructor(
         private _podcast: Podcast,
         private _pollIntervalMS: number = 43200000,
-        private _backlogSize: number = 3
+        private _backlogSize: number = 3,
+        private _throttleTime: number = 600000
     ) {
         this.feedSubject = new rxjs.ReplaySubject<PodcastFeed>(1);
+        this._mTrigger = new rxjs.Subject<number>();
         this._fetchFeed();
     }
 
+    public forceCheck(){
+        this._mTrigger.next(0);
+    }
+
     private _fetchFeed() {
-        console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.")
-        rxjs.Observable.timer(25, this._pollIntervalMS).subscribe(_ => {
+        console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
+        this._mTrigger.throttleTime(this._throttleTime)
+            .subscribe(_ => {
             console.log("Checking the feed " + this._podcast.youtubeUrl);
             rp(this._podcast.youtubeUrl)
                 .then((xml: string) => {
@@ -34,11 +41,12 @@ export class FeedScrapper {
                     console.log(error.message);
                 });
         });
+        rxjs.Observable.timer(25, this._pollIntervalMS).subscribe((num) => this._mTrigger.next(num));
     }
 
     private _parseXML(xmlData: string): PodcastFeed {
         let xml = parser(xmlData);
-        let feedData = {...this._podcast} as PodcastFeed;
+        let feedData = { ...this._podcast } as PodcastFeed;
         feedData.data = new Array<PodcastFeedEntry>();
 
         feedData.title = xml.root.children
@@ -51,6 +59,15 @@ export class FeedScrapper {
         feedData.fetchDate = Date.now();
 
         xml.root.children.filter(elem => elem.name == "entry")
+            .sort((a, b) => {
+                let aDate = new Date(a.children
+                    .filter(elem => elem.name == "published" || "pubDate")[0] 
+                    .content);
+                let bDate = new Date(b.children
+                    .filter(elem => elem.name == "published" || "pubDate")[0]
+                    .content);
+                    return bDate.getTime() - aDate.getTime();
+            })
             .slice(0, this._backlogSize)
             .forEach(elem => {
                 let entry = {} as PodcastFeedEntry;
