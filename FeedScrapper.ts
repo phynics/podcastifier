@@ -59,7 +59,7 @@ export class FeedScrapper {
         feedData.fetchDate = Date.now();
 
         xml.root.children.filter(elem => elem.name == "entry")
-            .sort((a, b) => {
+            /*.sort((a, b) => {
                 let aDate = new Date(a.children
                     .filter(elem => elem.name == "published" || "pubDate")[0] 
                     .content);
@@ -67,7 +67,7 @@ export class FeedScrapper {
                     .filter(elem => elem.name == "published" || "pubDate")[0]
                     .content);
                     return bDate.getTime() - aDate.getTime();
-            })
+            })*/
             .slice(0, this._backlogSize)
             .forEach(elem => {
                 let entry = {} as PodcastFeedEntry;

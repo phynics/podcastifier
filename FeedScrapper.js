@@ -56,15 +56,6 @@ var FeedScrapper = /** @class */ (function () {
             .content;
         feedData.fetchDate = Date.now();
         xml.root.children.filter(function (elem) { return elem.name == "entry"; })
-            .sort(function (a, b) {
-            var aDate = new Date(a.children
-                .filter(function (elem) { return elem.name == "published" || "pubDate"; })[0]
-                .content);
-            var bDate = new Date(b.children
-                .filter(function (elem) { return elem.name == "published" || "pubDate"; })[0]
-                .content);
-            return bDate.getTime() - aDate.getTime();
-        })
             .slice(0, this._backlogSize)
             .forEach(function (elem) {
             var entry = {};
