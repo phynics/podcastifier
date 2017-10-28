@@ -22,3 +22,6 @@ export let AppConfig: Config = {
     serverURL: "http://18.194.120.95",
     serverPort: 8080
 };
+export let API = {
+    key: ""
+};
