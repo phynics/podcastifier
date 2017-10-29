@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 var FeedScrapper_1 = require("./FeedScrapper");
 var FeedTranspiler_1 = require("./FeedTranspiler");
 var FeedGenerator_1 = require("./FeedGenerator");

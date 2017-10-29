@@ -6,18 +6,23 @@ import {
 import * as podcast from "podcast";
 
 export class FeedGenerator {
-    public xmlPodcastFeed: ReplaySubject<string>;
+
+    private _xmlPodcastFeed: ReplaySubject<string>;
 
     constructor(
         private _transpileFeed: Observable<PodcastFeed>,
         private _hostName: string
     ) {
-        this.xmlPodcastFeed = new ReplaySubject(1);
+        this._xmlPodcastFeed = new ReplaySubject(1);
         _transpileFeed.subscribe((df: PodcastFeed) => {
             console.log("Generating an XML file...")
-            this.xmlPodcastFeed.next(this._generateXml(df));
+            this._xmlPodcastFeed.next(this._generateXml(df));
         }
         );
+    }
+
+    public get xmlPodcastFeed(): Observable<string> {
+        return this._xmlPodcastFeed;
     }
 
     private _generateXml(feed: PodcastFeed): string {

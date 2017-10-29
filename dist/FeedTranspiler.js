@@ -7,7 +7,7 @@ var __assign = (this && this.__assign) || Object.assign || function(t) {
     }
     return t;
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 var ydl = require("ytdl-core");
 var fs = require("fs");
 var ffmpeg = require("fluent-ffmpeg");

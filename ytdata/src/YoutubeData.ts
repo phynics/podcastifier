@@ -8,7 +8,7 @@ import {
     PlaylistItemResource
 } from "./Models";
 
-type ListPart =
+export type ListPart =
     "auditDetails" |
     "brandingSettings" |
     "contentDetails" |

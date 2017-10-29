@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 var rxjs_1 = require("rxjs");
 var podcast = require("podcast");
 var FeedGenerator = /** @class */ (function () {
@@ -7,12 +7,15 @@ var FeedGenerator = /** @class */ (function () {
         var _this = this;
         this._transpileFeed = _transpileFeed;
         this._hostName = _hostName;
-        this.xmlPodcastFeed = new rxjs_1.ReplaySubject(1);
+        this._xmlPodcastFeed = new rxjs_1.ReplaySubject(1);
         _transpileFeed.subscribe(function (df) {
             console.log("Generating an XML file...");
             _this.xmlPodcastFeed.next(_this._generateXml(df));
         });
     }
+    FeedGenerator.prototype.xmlPodcastFeed = function () {
+        return this._xmlPodcastFeed;
+    };
     FeedGenerator.prototype._generateXml = function (feed) {
         var _this = this;
         var podcastOptions = {

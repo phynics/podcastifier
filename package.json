@@ -1,7 +1,7 @@
 {
-  "name": "gkypr-mrm",
+  "name": "podcastifiee",
   "version": "1.0.0",
-  "description": "",
+  "description": "A tool to fetch youtube feeds and serve them as podcasts.",
   "main": "index.js",
   "dependencies": {
     "@types/express": "^4.0.37",
@@ -12,8 +12,6 @@
     "@types/xml-parser": "^1.2.29",
     "express": "^4.15.4",
     "fluent-ffmpeg": "^2.1.2",
-    "google-auth-library": "^0.11.0",
-    "googleapis": "^22.2.0",
     "gulp": "^3.9.1",
     "http": "0.0.0",
     "install": "^0.10.1",
@@ -24,10 +22,21 @@
     "rxjs": "^5.4.3",
     "stream": "0.0.2",
     "xml-parser": "^1.2.1",
-    "ytdl-core": "^0.17.1"
+    "ytdl-core": "^0.17.1",
+    "ytdata": "./ytdata"
   },
-  "devDependencies": {},
-  "scripts": {},
-  "author": "",
-  "license": "ISC"
+  "devDependencies": {
+    "del": "^3.0.0",
+    "gulp": "^3.9.1",
+    "gulp-tslint": "^8.1.2",
+    "gulp-typescript": "^3.2.3",
+    "tslint": "^5.8.0",
+    "typescript": "^2.5.3"
+  },
+  "scripts": {
+    "start": "node dist/app.js",
+    "build": "gulp compile:ts"
+  },
+  "author": "Atakan Dulker",
+  "license": "MIT"
 }

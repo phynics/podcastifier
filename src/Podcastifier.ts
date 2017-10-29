@@ -36,28 +36,28 @@ export class Podcastifier {
 
     private _setupExpress() {
         this._expressServer = express();
-        let exp = this._expressServer;
+        let app = this._expressServer;
 
-        exp.get("/", (req, res) => {
+        app.get("/", (req, res) => {
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
                 + this._podcasts.map((value) => {
                     return "<a href=\"" + this._configuration.serverURL+":"+this._configuration.serverPort+"/feeds/"+value.id+"/podcast.xml\">"
                 + value.title + "</a>";
             }).join("<br>"));
         });
-        exp.get("/feeds/:podcastid/podcast.xml", (req, res) => {
+        app.get("/feeds/:podcastid/podcast.xml", (req, res) => {
             var podcastId: string = req.params["podcastid"];
             if (fs.existsSync(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml")) {
                 res.sendFile(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml");
             }
         });
-        exp.get("/finicks", (req, res) => {
+        app.get("/finicks", (req, res) => {
             this._feedScrapper.forEach((item) => {
                 item.forceCheck();
             });
             res.sendStatus(418);
         })
-        exp.get("/:fileid/ep.mp3", (req, res) => {
+        app.get("/:fileid/ep.mp3", (req, res) => {
             var fileId: string = req.params["fileid"];
             if (fs.existsSync(__dirname + "/" + this._configuration.filePath + fileId + ".mp3")) {
                 res.sendFile(__dirname + "/" + this._configuration.filePath + fileId + ".mp3");

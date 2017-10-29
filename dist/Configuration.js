@@ -1,5 +1,5 @@
 "use strict";
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.Podcasts = [
     {
         title: "Geekyapar // Meram",
@@ -21,4 +21,7 @@ exports.AppConfig = {
     pollInterval: 43200000,
     serverURL: "http://18.194.120.95",
     serverPort: 8080
+};
+exports.API = {
+    key: ""
 };

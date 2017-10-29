@@ -7,7 +7,7 @@ var __assign = (this && this.__assign) || Object.assign || function(t) {
     }
     return t;
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 var rxjs = require("rxjs");
 var rp = require("request-promise-native");
 var parser = require("xml-parser");
@@ -22,13 +22,13 @@ var FeedScrapper = /** @class */ (function () {
         this._throttleTime = _throttleTime;
         this.feedSubject = new rxjs.ReplaySubject(1);
         this._mTrigger = new rxjs.Subject();
-        this._fetchFeed();
     }
     FeedScrapper.prototype.forceCheck = function () {
         this._mTrigger.next(0);
     };
     FeedScrapper.prototype._fetchFeed = function () {
         var _this = this;
+        var service;
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
         this._mTrigger.throttleTime(this._throttleTime)
             .subscribe(function (_) {
@@ -38,7 +38,8 @@ var FeedScrapper = /** @class */ (function () {
                 var parsed = _this._parseXML(xml);
                 console.log("Parsed XML file " + (new Date(parsed.fetchDate)).toLocaleString());
                 _this.feedSubject.next(parsed);
-            })["catch"](function (error) {
+            })
+                .catch(function (error) {
                 console.log(error.message);
             });
         });

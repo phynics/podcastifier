@@ -1,9 +1,6 @@
 import * as rxjs from "rxjs";
 import * as rp from "request-promise-native";
 import * as parser from "xml-parser";
-import GoogleAuth from "google-auth-library";
-import JWT from "google-auth-library";
-import * as googleapis from "googleapis";
 
 import {
     Podcast,
@@ -14,25 +11,14 @@ import {
 export class FeedScrapper {
     public feedSubject: rxjs.ReplaySubject<PodcastFeed>;
     private _mTrigger: rxjs.Subject<number>;
-    private _googleAuthClient: GoogleAuth;
-    private _youtubeAuth;
-    private _youtubeApi: any;
     constructor(
         private _podcast: Podcast,
         private _pollIntervalMS: number = 43200000,
         private _backlogSize: number = 3,
-        private _throttleTime: number = 600000,
-        private _kApiKey: string
+        private _throttleTime: number = 600000
     ) {
         this.feedSubject = new rxjs.ReplaySubject<PodcastFeed>(1);
         this._mTrigger = new rxjs.Subject<number>();
-        this._googleAuthClient = new GoogleAuth();
-        this._googleAuthClient.fromAPIKey(this._kApiKey, (error, client) => {
-            if (!error) {
-                this._youtubeAuth = client;
-                this._fetchFeed();
-            }
-        });
     }
 
     public forceCheck() {
@@ -40,21 +26,7 @@ export class FeedScrapper {
     }
 
     private _fetchFeed() {
-        console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
-        this._mTrigger.throttleTime(this._throttleTime)
-            .subscribe(_ => {
-                let request = gapi.client
-            });
-        rxjs.Observable.timer(25, this._pollIntervalMS).subscribe((num) => this._mTrigger.next(num));
-    }
-
-
-    private _fetchFeed2() {
         let service;
-        googleapis.discover("https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest",
-            (r) => {
-                service = googleapis.addAPIs(r);
-            });
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
         this._mTrigger.throttleTime(this._throttleTime)
             .subscribe(_ => {
