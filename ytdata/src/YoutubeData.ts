@@ -24,18 +24,19 @@ export type ListPart =
     "fileDetails" |
     "status";
 
-export class YoutubeDataApi {
+export class YTDataApi {
 
     constructor(private _kApiKey: string) { }
 
     public retrievePlaylistItemList(
         parts: ListPart[],
+        shouldIterate: boolean = true,
         playlistId?: string,
         maxResults?: number
     ): Observable<PlaylistItemResource[]> {
         return this._requestPlaylistItemList(parts, playlistId, maxResults)
             .expand((page) => {
-                if (page.nextPageToken != null) {
+                if (page.nextPageToken != null && shouldIterate) {
                     return this._requestPlaylistItemList(parts, playlistId, maxResults, page.nextPageToken);
                 } else {
                     return Observable.empty();
