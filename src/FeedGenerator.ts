@@ -1,7 +1,6 @@
 import { ReplaySubject, Observable } from "rxjs";
 import {
-    PodcastFeed,
-    PodcastFeedEntry
+    PodcastFeed
 } from "./Models";
 import * as podcast from "podcast";
 
@@ -10,7 +9,7 @@ export class FeedGenerator {
     private _xmlPodcastFeed: ReplaySubject<string>;
 
     constructor(
-        private _transpileFeed: Observable<PodcastFeed>,
+        _transpileFeed: Observable<PodcastFeed>,
         private _hostName: string
     ) {
         this._xmlPodcastFeed = new ReplaySubject(1);
@@ -22,7 +21,7 @@ export class FeedGenerator {
     }
 
     public get xmlPodcastFeed(): Observable<string> {
-        return this._xmlPodcastFeed;
+        return this._xmlPodcastFeed.asObservable();
     }
 
     private _generateXml(feed: PodcastFeed): string {

@@ -22,13 +22,13 @@ var FeedScrapper = /** @class */ (function () {
         this._throttleTime = _throttleTime;
         this.feedSubject = new rxjs.ReplaySubject(1);
         this._mTrigger = new rxjs.Subject();
+        this._fetchFeed();
     }
     FeedScrapper.prototype.forceCheck = function () {
         this._mTrigger.next(0);
     };
     FeedScrapper.prototype._fetchFeed = function () {
         var _this = this;
-        var service;
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
         this._mTrigger.throttleTime(this._throttleTime)
             .subscribe(function (_) {

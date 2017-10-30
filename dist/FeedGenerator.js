@@ -5,17 +5,20 @@ var podcast = require("podcast");
 var FeedGenerator = /** @class */ (function () {
     function FeedGenerator(_transpileFeed, _hostName) {
         var _this = this;
-        this._transpileFeed = _transpileFeed;
         this._hostName = _hostName;
         this._xmlPodcastFeed = new rxjs_1.ReplaySubject(1);
         _transpileFeed.subscribe(function (df) {
             console.log("Generating an XML file...");
-            _this.xmlPodcastFeed.next(_this._generateXml(df));
+            _this._xmlPodcastFeed.next(_this._generateXml(df));
         });
     }
-    FeedGenerator.prototype.xmlPodcastFeed = function () {
-        return this._xmlPodcastFeed;
-    };
+    Object.defineProperty(FeedGenerator.prototype, "xmlPodcastFeed", {
+        get: function () {
+            return this._xmlPodcastFeed.asObservable();
+        },
+        enumerable: true,
+        configurable: true
+    });
     FeedGenerator.prototype._generateXml = function (feed) {
         var _this = this;
         var podcastOptions = {

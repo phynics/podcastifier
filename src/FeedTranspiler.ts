@@ -4,14 +4,13 @@ import * as ffmpeg from "fluent-ffmpeg";
 
 import { Readable } from "stream";
 import { PodcastFeed, PodcastFeedEntry } from "./Models";
-import { FeedScrapper } from "./FeedScrapper";
 import { Observable, Observer, ConnectableObservable, ReplaySubject } from "rxjs";
 
 export class FeedTranspiler {
     public downloadFeed: ReplaySubject<PodcastFeed>;
 
     constructor(
-        private _xmlFeed: Observable<PodcastFeed>,
+        _xmlFeed: Observable<PodcastFeed>,
         private _kStoDir: string = "storage/"
     ) {
         this.downloadFeed = new ReplaySubject(1);
@@ -67,7 +66,7 @@ export class FeedTranspiler {
                 .on('info', (arg) => {
                     console.log(JSON.stringify(arg));
                 })
-                .on('end', (video) => {
+                .on('end', () => {
                     let payload = { ...entry };
                     payload.localPath = path;
                     observer.next(payload);

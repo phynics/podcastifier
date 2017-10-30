@@ -23,7 +23,7 @@ export class Podcastifier {
         this._feedGenerator = new Array<FeedGenerator>();
         this._feedScrapper = new Array<FeedScrapper>();
         this._feedTranspiler = new Array<FeedTranspiler>();
-        _podcasts.forEach((podcast, index) => {
+        _podcasts.forEach((podcast, _) => {
             let feedS = new FeedScrapper(podcast, this._configuration.pollInterval, this._configuration.backlogSize);
             this._feedScrapper.push(feedS);
             let feedT = new FeedTranspiler(feedS.feedSubject);
@@ -38,7 +38,7 @@ export class Podcastifier {
         this._expressServer = express();
         let app = this._expressServer;
 
-        app.get("/", (req, res) => {
+        app.get("/", (_, res) => {
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
                 + this._podcasts.map((value) => {
                     return "<a href=\"" + this._configuration.serverURL+":"+this._configuration.serverPort+"/feeds/"+value.id+"/podcast.xml\">"
@@ -51,7 +51,7 @@ export class Podcastifier {
                 res.sendFile(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml");
             }
         });
-        app.get("/finicks", (req, res) => {
+        app.get("/finicks", (_, res) => {
             this._feedScrapper.forEach((item) => {
                 item.forceCheck();
             });

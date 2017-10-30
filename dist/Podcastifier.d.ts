@@ -6,6 +6,7 @@ export declare class Podcastifier {
     private _feedScrapper;
     private _feedTranspiler;
     private _feedGenerator;
+    private _stats;
     constructor(_configuration: Config, _podcasts: Podcast[]);
     private _setupExpress();
     private _saveXml(xml, podcast);

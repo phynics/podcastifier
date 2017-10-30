@@ -16,7 +16,6 @@ var FeedTranspiler = /** @class */ (function () {
     function FeedTranspiler(_xmlFeed, _kStoDir) {
         if (_kStoDir === void 0) { _kStoDir = "storage/"; }
         var _this = this;
-        this._xmlFeed = _xmlFeed;
         this._kStoDir = _kStoDir;
         this.downloadFeed = new rxjs_1.ReplaySubject(1);
         _xmlFeed.subscribe(function (value) {
@@ -69,7 +68,7 @@ var FeedTranspiler = /** @class */ (function () {
                 .on('info', function (arg) {
                 console.log(JSON.stringify(arg));
             })
-                .on('end', function (video) {
+                .on('end', function () {
                 var payload = __assign({}, entry);
                 payload.localPath = path;
                 observer.next(payload);

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var FeedScrapper_1 = require("./FeedScrapper");
 var FeedTranspiler_1 = require("./FeedTranspiler");
 var FeedGenerator_1 = require("./FeedGenerator");
+var sss = require("simple-stats-server");
 var express = require("express");
 var fs = require("fs");
 var Podcastifier = /** @class */ (function () {
@@ -17,7 +18,7 @@ var Podcastifier = /** @class */ (function () {
         this._feedGenerator = new Array();
         this._feedScrapper = new Array();
         this._feedTranspiler = new Array();
-        _podcasts.forEach(function (podcast, index) {
+        _podcasts.forEach(function (podcast) {
             var feedS = new FeedScrapper_1.FeedScrapper(podcast, _this._configuration.pollInterval, _this._configuration.backlogSize);
             _this._feedScrapper.push(feedS);
             var feedT = new FeedTranspiler_1.FeedTranspiler(feedS.feedSubject);
@@ -29,27 +30,30 @@ var Podcastifier = /** @class */ (function () {
     Podcastifier.prototype._setupExpress = function () {
         var _this = this;
         this._expressServer = express();
-        var exp = this._expressServer;
-        exp.get("/", function (req, res) {
+        this._stats = sss();
+        var app = this._expressServer;
+        app.use("/stats", this._stats);
+        app.get("/", function (_, res) {
+            _this._stats.count("directory");
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
                 + _this._podcasts.map(function (value) {
                     return "<a href=\"" + _this._configuration.serverURL + ":" + _this._configuration.serverPort + "/feeds/" + value.id + "/podcast.xml\">"
                         + value.title + "</a>";
                 }).join("<br>"));
         });
-        exp.get("/feeds/:podcastid/podcast.xml", function (req, res) {
+        app.get("/feeds/:podcastid/podcast.xml", function (req, res) {
             var podcastId = req.params["podcastid"];
             if (fs.existsSync(__dirname + "/" + _this._configuration.feedPath + podcastId + ".xml")) {
                 res.sendFile(__dirname + "/" + _this._configuration.feedPath + podcastId + ".xml");
             }
         });
-        exp.get("/finicks", function (req, res) {
+        app.get("/finicks", function (_, res) {
             _this._feedScrapper.forEach(function (item) {
                 item.forceCheck();
             });
             res.sendStatus(418);
         });
-        exp.get("/:fileid/ep.mp3", function (req, res) {
+        app.get("/:fileid/ep.mp3", function (req, res) {
             var fileId = req.params["fileid"];
             if (fs.existsSync(__dirname + "/" + _this._configuration.filePath + fileId + ".mp3")) {
                 res.sendFile(__dirname + "/" + _this._configuration.filePath + fileId + ".mp3");

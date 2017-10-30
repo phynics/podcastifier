@@ -22,6 +22,3 @@ exports.AppConfig = {
     serverURL: "http://18.194.120.95",
     serverPort: 8080
 };
-exports.API = {
-    key: ""
-};

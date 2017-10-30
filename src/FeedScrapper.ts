@@ -19,6 +19,7 @@ export class FeedScrapper {
     ) {
         this.feedSubject = new rxjs.ReplaySubject<PodcastFeed>(1);
         this._mTrigger = new rxjs.Subject<number>();
+        this._fetchFeed();
     }
 
     public forceCheck() {
@@ -26,7 +27,6 @@ export class FeedScrapper {
     }
 
     private _fetchFeed() {
-        let service;
         console.log("Setting polling with " + this._pollIntervalMS + "ms intervals.");
         this._mTrigger.throttleTime(this._throttleTime)
             .subscribe(_ => {
