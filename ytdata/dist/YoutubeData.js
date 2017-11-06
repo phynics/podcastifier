@@ -2,37 +2,43 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var request = require("request-promise-native");
 var rxjs_1 = require("rxjs");
-var YoutubeDataApi = /** @class */ (function () {
-    function YoutubeDataApi(_kApiKey) {
+var YTDataApi = /** @class */ (function () {
+    function YTDataApi(_kApiKey) {
         this._kApiKey = _kApiKey;
     }
-    YoutubeDataApi.prototype.retrievePlaylistItemList = function (parts, playlistId, maxResults) {
+    YTDataApi.prototype.retrieveChannelList = function (parts, shouldIterate, channelId, maxResults, forUsername) {
+        if (parts === void 0) { parts = ["contentDetails"]; }
+        return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/channels", shouldIterate, channelId, undefined, undefined, maxResults, forUsername);
+    };
+    YTDataApi.prototype.retrievePlaylistItemList = function (parts, shouldIterate, playlistId, maxResults) {
+        if (parts === void 0) { parts = ["contentDetails"]; }
+        return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/playlistItems", shouldIterate, undefined, playlistId, undefined, maxResults);
+    };
+    YTDataApi.prototype.retrievePlaylistList = function (parts, shouldIterate, playlistId, maxResults) {
+        return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/playlists", shouldIterate, undefined, playlistId, undefined, maxResults);
+    };
+    YTDataApi.prototype.retrieveVideosList = function (parts, shouldIterate, videoId, maxResults) {
+        return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/videos", shouldIterate, videoId, undefined, undefined, maxResults);
+    };
+    YTDataApi.prototype._retrieveResourceList = function (parts, baseUrl, shouldIterate, resourceId, playlistId, channelId, maxResults, pageToken, forUsername) {
         var _this = this;
-        return this._requestPlaylistItemList(parts, playlistId, maxResults)
+        return this._requestResourceList(parts, baseUrl, resourceId, playlistId, channelId, maxResults, pageToken, forUsername)
             .expand(function (page) {
-            if (page.nextPageToken != null) {
-                return _this._requestPlaylistItemList(parts, playlistId, maxResults, page.nextPageToken);
+            if (page.nextPageToken != null && shouldIterate) {
+                return _this._requestResourceList(parts, baseUrl, resourceId, channelId, maxResults, page.nextPageToken);
             }
             else {
                 return rxjs_1.Observable.empty();
             }
         })
-            .map(function (page) { return page.items; })
-            .reduce(function (acc, items) { return acc.concat(items); });
+            .reduce(function (acc, item) {
+            var ret = acc;
+            ret.items = acc.items.concat(item.items);
+            acc["nextPageToken"] && delete ret["nextPageToken"];
+            return ret;
+        });
     };
-    YoutubeDataApi.prototype._requestChannelList = function (parts, channelId, forUsername, maxResults, pageToken) {
-        return this._requestResourceList(parts, "https://www.googleapis.com/youtube/v3/channels", channelId, maxResults, pageToken, forUsername);
-    };
-    YoutubeDataApi.prototype._requestPlaylistItemList = function (parts, playlistId, maxResults, pageToken) {
-        return this._requestResourceList(parts, "https://www.googleapis.com/youtube/v3/playlistItems", playlistId, maxResults, pageToken);
-    };
-    YoutubeDataApi.prototype._requestPlaylistList = function (parts, playlistId, maxResults, pageToken) {
-        return this._requestResourceList(parts, "https://www.googleapis.com/youtube/v3/playlists", playlistId, maxResults, pageToken);
-    };
-    YoutubeDataApi.prototype._requestVideosList = function (parts, videoId, maxResults, pageToken) {
-        return this._requestResourceList(parts, "https://www.googleapis.com/youtube/v3/videos", videoId, maxResults, pageToken);
-    };
-    YoutubeDataApi.prototype._requestResourceList = function (parts, baseUrl, resourceId, maxResults, pageToken, forUsername) {
+    YTDataApi.prototype._requestResourceList = function (parts, baseUrl, resourceId, playlistId, channelId, maxResults, pageToken, forUsername) {
         // A wild dragonite appeared.
         var options = { key: this._kApiKey };
         if (parts && parts.length > 0) {
@@ -44,6 +50,12 @@ var YoutubeDataApi = /** @class */ (function () {
         }
         if (maxResults && maxResults > 0) {
             options["maxResults"] = maxResults.toString();
+        }
+        if (playlistId && playlistId.length > 0) {
+            options["playlistId"] = playlistId;
+        }
+        if (playlistId && playlistId.length > 0) {
+            options["channelId"] = channelId;
         }
         if (pageToken && pageToken.length > 0) {
             options["pageToken"] = pageToken;
@@ -61,6 +73,6 @@ var YoutubeDataApi = /** @class */ (function () {
             });
         });
     };
-    return YoutubeDataApi;
+    return YTDataApi;
 }());
-exports.YoutubeDataApi = YoutubeDataApi;
+exports.YTDataApi = YTDataApi;

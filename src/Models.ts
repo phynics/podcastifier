@@ -1,16 +1,29 @@
 export interface Podcast {
-    title: string;
-    id: string;
-    description: string;
-    author: string;
-    itunesSubtitle: string;
-    image: string;
-    youtubeUrl: string;
-    siteUrl: string;
-    lang: string;
+    alias: string;
+    sourceId: string;
+    sourceModule: SourceModule.Youtube;
+    sourceType?: SourceType;
+    title?: string;
+    description?: string;
+    author?: string;
+    itunesSubtitle?: string;
+    image?: string;
+    siteUrl?: string;
+    sourcePlaylistId?: string;
 }
 
-export interface PodcastFeed extends Podcast {
+export enum SourceType {
+    Channel,
+    Playlist
+}
+
+export enum SourceModule {
+    None,
+    Youtube
+}
+
+export interface PodcastFetch extends Podcast {
+    podcastAlias: string;
     fetchDate: number;
     pubDate: string;
     data: PodcastFeedEntry[];
@@ -29,7 +42,7 @@ export interface PodcastFeedEntry {
 export interface Config {
     feedPath: string;
     filePath: string;
-    pollInterval:number;
+    pollInterval: number;
     backlogSize: number;
     serverURL: string;
     serverPort: number;

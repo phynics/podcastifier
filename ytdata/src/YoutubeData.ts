@@ -5,7 +5,11 @@ import {
     VideosListResponse,
     PlaylistListResponse,
     PlaylistItemListResponse,
-    PlaylistItemResource
+    PlaylistItemResource,
+    ChannelResource,
+    PlaylistResource,
+    VideosResource,
+    ListResponse
 } from "./Models";
 
 export type ListPart =
@@ -28,86 +32,105 @@ export class YTDataApi {
 
     constructor(private _kApiKey: string) { }
 
+    public retrieveChannelList(
+        parts: ListPart[] = ["contentDetails"],
+        shouldIterate: boolean,
+        channelId?: string,
+        maxResults?: number,
+        forUsername?: string
+    ): Observable<ChannelListResponse> {
+        return this._retrieveResourceList<ChannelResource>(
+            parts,
+            "https://www.googleapis.com/youtube/v3/channels",
+            shouldIterate,
+            channelId,
+            undefined,
+            undefined,
+            maxResults,
+            forUsername);
+    }
+
     public retrievePlaylistItemList(
-        parts: ListPart[],
-        shouldIterate: boolean = true,
+        parts: ListPart[] = ["contentDetails"],
+        shouldIterate: boolean,
         playlistId?: string,
         maxResults?: number
-    ): Observable<PlaylistItemResource[]> {
-        return this._requestPlaylistItemList(parts, playlistId, maxResults)
+    ): Observable<PlaylistItemListResponse> {
+        return this._retrieveResourceList<PlaylistItemResource>(
+            parts,
+            "https://www.googleapis.com/youtube/v3/playlistItems",
+            shouldIterate,
+            undefined,
+            playlistId,
+            undefined,
+            maxResults);
+    }
+
+    public retrievePlaylistList(
+        parts: ListPart[],
+        shouldIterate: boolean,
+        playlistId?: string,
+        maxResults?: number
+    ): Observable<PlaylistListResponse> {
+        return this._retrieveResourceList<PlaylistResource>(
+            parts,
+            "https://www.googleapis.com/youtube/v3/playlists",
+            shouldIterate,
+            undefined,
+            playlistId,
+            undefined,
+            maxResults);
+    }
+
+    public retrieveVideosList(
+        parts: ListPart[],
+        shouldIterate: boolean,
+        videoId?: string,
+        maxResults?: number
+    ): Observable<VideosListResponse> {
+        return this._retrieveResourceList<VideosResource>(
+            parts,
+            "https://www.googleapis.com/youtube/v3/videos",
+            shouldIterate,
+            videoId,
+            undefined,
+            undefined,
+            maxResults
+        );
+    }
+
+    private _retrieveResourceList<T>(
+        parts: ListPart[],
+        baseUrl: string,
+        shouldIterate: boolean,
+        resourceId?: string,
+        playlistId?: string,
+        channelId?: string,
+        maxResults?: number,
+        pageToken?: string,
+        forUsername?: string
+    ): Observable<ListResponse<T>> {
+        return this._requestResourceList<ListResponse<T>>(parts, baseUrl, resourceId, playlistId, channelId, maxResults, pageToken, forUsername)
             .expand((page) => {
                 if (page.nextPageToken != null && shouldIterate) {
-                    return this._requestPlaylistItemList(parts, playlistId, maxResults, page.nextPageToken);
+                    return this._requestResourceList<ListResponse<T>>(parts, baseUrl, resourceId, channelId, maxResults, page.nextPageToken);
                 } else {
                     return Observable.empty();
                 }
             })
-            .map(page => page.items)
-            .reduce((acc, items) => acc.concat(items));
+            .reduce((acc, item) => {
+                let ret = acc;
+                ret.items = acc.items.concat(item.items);
+                acc["nextPageToken"] && delete ret["nextPageToken"];
+                return ret;
+            })
     }
-
-    private _requestChannelList(
-        parts: ListPart[],
-        channelId?: string,
-        forUsername?: string,
-        maxResults?: number,
-        pageToken?: string
-    ): Observable<ChannelListResponse> {
-        return this._requestResourceList<ChannelListResponse>(
-            parts,
-            "https://www.googleapis.com/youtube/v3/channels",
-            channelId,
-            maxResults,
-            pageToken,
-            forUsername);
-    }
-
-    private _requestPlaylistItemList(
-        parts: ListPart[],
-        playlistId?: string,
-        maxResults?: number,
-        pageToken?: string
-    ): Observable<PlaylistItemListResponse> {
-        return this._requestResourceList<PlaylistItemListResponse>(
-            parts,
-            "https://www.googleapis.com/youtube/v3/playlistItems",
-            playlistId,
-            maxResults,
-            pageToken);
-    }
-
-    private _requestPlaylistList(
-        parts: ListPart[],
-        playlistId?: string,
-        maxResults?: number,
-        pageToken?: string
-    ): Observable<PlaylistListResponse> {
-        return this._requestResourceList<PlaylistListResponse>(
-            parts,
-            "https://www.googleapis.com/youtube/v3/playlists",
-            playlistId,
-            maxResults,
-            pageToken);
-    }
-
-    private _requestVideosList(
-        parts: ListPart[],
-        videoId?: string,
-        maxResults?: number,
-        pageToken?: string
-    ): Observable<VideosListResponse> {
-        return this._requestResourceList<VideosListResponse>(
-            parts,
-            "https://www.googleapis.com/youtube/v3/videos",
-            videoId,
-            maxResults,
-            pageToken);
-    }
-
     private _requestResourceList<T>(
         parts: ListPart[],
         baseUrl: string,
         resourceId?: string,
+        playlistId?: string,
+        channelId?: string,
         maxResults?: number,
         pageToken?: string,
         forUsername?: string
@@ -124,6 +147,12 @@ export class YTDataApi {
         }
         if (maxResults && maxResults > 0) {
             options["maxResults"] = maxResults.toString();
+        }
+        if (playlistId && playlistId.length > 0) {
+            options["playlistId"] = playlistId;
+        }
+        if (playlistId && playlistId.length > 0) {
+            options["channelId"] = channelId;
         }
         if (pageToken && pageToken.length > 0) {
             options["pageToken"] = pageToken;

@@ -1,9 +1,11 @@
 {
   "name": "ytdata",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Enables basic interaction with Youtube Data API v3.",
   "author": "Atakan Dulker",
   "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "devDependencies": {
     "del": "^3.0.0",
     "gulp": "^3.9.1",

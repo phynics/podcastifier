@@ -1,13 +1,13 @@
 import { Observable } from "rxjs";
-import { PlaylistItemResource } from "./Models";
+import { ChannelListResponse, VideosListResponse, PlaylistListResponse, PlaylistItemListResponse } from "./Models";
 export declare type ListPart = "auditDetails" | "brandingSettings" | "contentDetails" | "contentOwnerDetails" | "id" | "invideoPromotion" | "localizations" | "snippet" | "statistics" | "status" | "topicDetails" | "player" | "fileDetails" | "status";
-export declare class YoutubeDataApi {
+export declare class YTDataApi {
     private _kApiKey;
     constructor(_kApiKey: string);
-    retrievePlaylistItemList(parts: ListPart[], playlistId?: string, maxResults?: number): Observable<PlaylistItemResource[]>;
-    private _requestChannelList(parts, channelId?, forUsername?, maxResults?, pageToken?);
-    private _requestPlaylistItemList(parts, playlistId?, maxResults?, pageToken?);
-    private _requestPlaylistList(parts, playlistId?, maxResults?, pageToken?);
-    private _requestVideosList(parts, videoId?, maxResults?, pageToken?);
-    private _requestResourceList<T>(parts, baseUrl, resourceId?, maxResults?, pageToken?, forUsername?);
+    retrieveChannelList(parts: ListPart[], shouldIterate: boolean, channelId?: string, maxResults?: number, forUsername?: string): Observable<ChannelListResponse>;
+    retrievePlaylistItemList(parts: ListPart[], shouldIterate: boolean, playlistId?: string, maxResults?: number): Observable<PlaylistItemListResponse>;
+    retrievePlaylistList(parts: ListPart[], shouldIterate: boolean, playlistId?: string, maxResults?: number): Observable<PlaylistListResponse>;
+    retrieveVideosList(parts: ListPart[], shouldIterate: boolean, videoId?: string, maxResults?: number): Observable<VideosListResponse>;
+    private _retrieveResourceList<T>(parts, baseUrl, shouldIterate, resourceId?, playlistId?, channelId?, maxResults?, pageToken?, forUsername?);
+    private _requestResourceList<T>(parts, baseUrl, resourceId?, playlistId?, channelId?, maxResults?, pageToken?, forUsername?);
 }

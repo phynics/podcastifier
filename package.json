@@ -1,8 +1,7 @@
 {
-  "name": "podcastifiee",
+  "name": "podcastifier",
   "version": "1.0.0",
   "description": "A tool to fetch youtube feeds and serve them as podcasts.",
-  "main": "index.js",
   "dependencies": {
     "@types/express": "^4.0.37",
     "@types/fluent-ffmpeg": "^2.1.3",
@@ -22,7 +21,7 @@
     "rxjs": "^5.4.3",
     "stream": "0.0.2",
     "xml-parser": "^1.2.1",
-    "ytdata": "./ytdata",
+    "ytdata": "0.x.x",
     "ytdl-core": "^0.17.1"
   },
   "devDependencies": {
