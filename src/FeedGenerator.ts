@@ -1,6 +1,6 @@
 import { ReplaySubject, Observable } from "rxjs";
 import {
-    PodcastFeed
+    PodcastFetch
 } from "./Models";
 import * as podcast from "podcast";
 
@@ -9,11 +9,11 @@ export class FeedGenerator {
     private _xmlPodcastFeed: ReplaySubject<string>;
 
     constructor(
-        _transpileFeed: Observable<PodcastFeed>,
+        _transpileFeed: Observable<PodcastFetch>,
         private _hostName: string
     ) {
         this._xmlPodcastFeed = new ReplaySubject(1);
-        _transpileFeed.subscribe((df: PodcastFeed) => {
+        _transpileFeed.subscribe((df: PodcastFetch) => {
             console.log("Generating an XML file...")
             this._xmlPodcastFeed.next(this._generateXml(df));
         }
@@ -24,10 +24,11 @@ export class FeedGenerator {
         return this._xmlPodcastFeed.asObservable();
     }
 
-    private _generateXml(feed: PodcastFeed): string {
+    private _generateXml(feed: PodcastFetch): string {
         let podcastOptions: IFeedOptions = {
             title: feed.title,
             description: feed.description,
+            itunesImage: feed.image,
             image_url: feed.image,
             author: feed.author,
             pubDate: new Date(feed.pubDate),
@@ -35,8 +36,7 @@ export class FeedGenerator {
             itunesAuthor: feed.author,
             itunesSummary: feed.itunesSubtitle,
             site_url: feed.siteUrl,
-            language: feed.lang,
-            feed_url: this._hostName + "/feeds/" + feed.id + "/podcast.xml"
+            feed_url: this._hostName + "/feeds/" + feed.alias + "/podcast.xml"
 
         };
         let pod = new podcast(podcastOptions);
