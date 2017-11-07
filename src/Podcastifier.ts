@@ -16,6 +16,7 @@ export class Podcastifier {
         private _podcasts: Podcast[]
     ) {
         this._setupExpress();
+        this._setupDirectories();
         if (this._expressServer != null) {
             this._expressServer.listen(this._configuration.serverPort,
                 () => console.log("Started express server at port " + this._configuration.serverPort + "."));
@@ -32,6 +33,11 @@ export class Podcastifier {
                 this._configuration.serverURL + ":" + this._configuration.serverPort);
             feedG.xmlPodcastFeed.subscribe((xml) => this._saveXml(xml, podcast));
         });
+    }
+
+    private _setupDirectories() {
+        fs.mkdir(__dirname + "/" + this._configuration.feedPath, ()=>{});
+        fs.mkdir(__dirname + "/" + this._configuration.filePath, ()=>{});
     }
 
     private _setupExpress() {
@@ -66,6 +72,6 @@ export class Podcastifier {
     }
 
     private _saveXml(xml: string, podcast: Podcast) {
-        fs.writeFile(__dirname + "/" + this._configuration.feedPath + podcast.id + ".xml", xml, () => { });
+        fs.writeFile(__dirname + "/" + this._configuration.feedPath + podcast.alias + ".xml", xml, () => { });
     }
 }

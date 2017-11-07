@@ -22,7 +22,7 @@
     "stream": "0.0.2",
     "tssqlite": "^1.0.1",
     "xml-parser": "^1.2.1",
-    "ytdata": "0.x.x",
+    "ytdata": "./ytdata",
     "ytdl-core": "^0.17.1"
   },
   "devDependencies": {
@@ -35,7 +35,8 @@
   },
   "scripts": {
     "start": "node dist/app.js",
-    "build": "gulp compile:ts"
+    "build": "gulp compile:ts",
+    "deploy": "docker-compose up"
   },
   "author": "Atakan Dulker",
   "license": "MIT"
