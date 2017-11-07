@@ -1,9 +1,10 @@
-import { Podcast, SourceModule } from "./Models";
+
 import { DatabaseController } from "./DatabaseController";
+import { Podcast, SourceModule } from "./Models";
 
 export abstract class SourceAdapter {
-    constructor(_db: DatabaseController) { };
-    
+    constructor(_db: DatabaseController) {/**/};
+
     public get sourceType(): SourceModule {
         return SourceModule.None;
     }

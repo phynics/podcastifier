@@ -1,18 +1,20 @@
-import { YTDataApi } from "ytdata";
+
 import { Observable } from "rxjs/Observable";
+import { YTDataApi } from "ytdata";
+
 import { DatabaseController } from "./DatabaseController";
-import { Podcast, SourceType, SourceModule } from "./Models";
+import { Podcast, SourceModule, SourceType } from "./Models";
 import { SourceAdapter } from "./SourceAdapter";
 
 export class YoutubeAdapter extends SourceAdapter {
-    private _ytdata: YTDataApi;
+    private _ytData: YTDataApi;
 
     constructor(
         private _db: DatabaseController,
         _apiKey: string,
     ) {
         super(_db);
-        this._ytdata = new YTDataApi(_apiKey);
+        this._ytData = new YTDataApi(_apiKey);
     }
     get sourceType(): SourceModule {
         return SourceModule.Youtube;
@@ -29,8 +31,8 @@ export class YoutubeAdapter extends SourceAdapter {
             let detailsObs: Observable<Podcast>;
             if (podcast.sourceType === SourceType.Channel) {
                 detailsObs = this._pullChannelDetails(podcast.sourceId)
-                    .map(cDetails => {
-                        let pd: Podcast = { ...podcast };
+                    .map((cDetails) => {
+                        const pd: Podcast = { ...podcast };
                         if (!pd.title) {
                             pd.title = cDetails.title;
                         }
@@ -53,8 +55,8 @@ export class YoutubeAdapter extends SourceAdapter {
                     });
             } else if (podcast.sourceType === SourceType.Playlist) {
                 detailsObs = this._pullPlaylistDetails(podcast.sourceId)
-                    .map(pDetails => {
-                        let pd: Podcast = { ...podcast };
+                    .map((pDetails) => {
+                        const pd: Podcast = { ...podcast };
                         if (!pd.title) {
                             pd.title = pDetails.title;
                         }
@@ -74,13 +76,15 @@ export class YoutubeAdapter extends SourceAdapter {
                             pd.sourcePlaylistId = podcast.sourceId;
                         }
                         return pd;
-                    })
+                    });
             }
-            detailsObs && detailsObs.subscribe(pd => {
-                /*
-                * TODO: Add to database.
-                */
-            });
+            if (!!detailsObs) {
+                detailsObs.subscribe((pd) => {
+                    /*
+                    * TODO: Add to database.
+                    */
+                });
+            }
         }
     }
 
@@ -91,71 +95,71 @@ export class YoutubeAdapter extends SourceAdapter {
         throw new Error("Method not implemented.");
     }
 
-    private _pullChannelDetails(channelId: string): Observable<ChannelDetails> {
-        return this._ytdata
+    private _pullChannelDetails(channelId: string): Observable<IChannelDetails> {
+        return this._ytData
             .retrieveChannelList(["contentDetails", "snippet"], false, channelId)
             .map((raw) => {
-                let fetch = raw.items[0];
-                let podcast = {} as ChannelDetails;
+                const fetch = raw.items[0];
+                const podcast = {} as IChannelDetails;
                 podcast.title = fetch.snippet.title;
-                podcast.thumbnail = fetch.snippet.thumbnails["high"].url;
+                podcast.thumbnail = fetch.snippet.thumbnails.high.url;
                 podcast.defaultPlaylist = fetch.contentDetails.relatedPlaylists.uploads;
                 podcast.channelUrl = "https://www.youtube.com/channel/" + channelId;
                 return podcast;
             });
     }
 
-    private _pullPlaylistItemsDetails(playlistId: string): Observable<PlaylistItemsDetails[]> {
-        return this._ytdata
+    private _pullPlaylistItemsDetails(playlistId: string): Observable<IPlaylistItemsDetails[]> {
+        return this._ytData
             .retrievePlaylistItemList(["snippet"], true, playlistId, 50)
             .map((raw) => {
-                let playlist = [] as PlaylistItemsDetails[];
+                const playlist = [] as IPlaylistItemsDetails[];
                 raw.items.forEach((item) => {
-                    let entry = {} as PlaylistItemsDetails;
+                    const entry = {} as IPlaylistItemsDetails;
                     entry.title = item.snippet.title;
                     entry.description = item.snippet.description;
-                    entry.thumbnail = item.snippet.thumbnails["high"].url;
+                    entry.thumbnail = item.snippet.thumbnails.high.url;
                     entry.videoId = item.snippet.resourceId.videoId;
-                })
+                });
                 return playlist;
             });
     }
 
-    private _pullPlaylistDetails(playlistId: string): Observable<PlaylistDetails> {
-        return this._ytdata
+    private _pullPlaylistDetails(playlistId: string): Observable<IPlaylistDetails> {
+        return this._ytData
             .retrievePlaylistList(["snippet"], false, playlistId, 1)
             .map((raw) => {
-                let playlist = {} as PlaylistDetails;
+                const playlist = {} as IPlaylistDetails;
                 playlist.channelId = raw.items[0].snippet.channelId;
                 playlist.description = raw.items[0].snippet.description;
                 playlist.title = raw.items[0].snippet.title;
-                playlist.thumbnail = raw.items[0].snippet.thumbnails["high"].url;
+                playlist.thumbnail = raw.items[0].snippet.thumbnails.high.url;
                 playlist.playlistUrl = "https://www.youtube.com/playlist?list=" + playlistId;
                 return playlist;
-            })
+            });
     }
 }
 
-interface ChannelDetails {
+interface IChannelDetails {
     title: string;
     description: string;
     thumbnail: string;
     channelUrl: string;
     defaultLanguage: string;
     defaultPlaylist: string;
-};
+}
 
-interface PlaylistDetails {
+interface IPlaylistDetails {
     title: string;
     description: string;
     channelId: string;
     thumbnail: string;
     playlistUrl: string;
-};
+}
 
-interface PlaylistItemsDetails {
-    title: string,
-    description: string,
-    thumbnail: string,
-    videoId: string
+interface IPlaylistItemsDetails {
+    title: string;
+    description: string;
+    thumbnail: string;
+    videoId: string;
 }

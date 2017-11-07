@@ -1,28 +1,29 @@
-import * as ydl from "ytdl-core";
-import * as fs from "fs";
 import * as ffmpeg from "fluent-ffmpeg";
+import * as fs from "fs";
+import * as ydl from "ytdl-core";
 
+import { ConnectableObservable, Observable, Observer, ReplaySubject } from "rxjs";
 import { Readable } from "stream";
-import { PodcastFeed, PodcastFeedEntry } from "./Models";
-import { Observable, Observer, ConnectableObservable, ReplaySubject } from "rxjs";
+
+import { PodcastFeedEntry, PodcastFetch } from "./Models";
 
 export class FeedTranspiler {
-    public downloadFeed: ReplaySubject<PodcastFeed>;
+    public downloadFeed: ReplaySubject<PodcastFetch>;
 
     constructor(
-        _xmlFeed: Observable<PodcastFeed>,
-        private _kStoDir: string = "storage/"
+        _xmlFeed: Observable<PodcastFetch>,
+        private _kStoDir: string = "storage/",
     ) {
         this.downloadFeed = new ReplaySubject(1);
-        _xmlFeed.subscribe((value: PodcastFeed) => {
-            let dataObservables: Observable<PodcastFeedEntry>[] = new Array<Observable<PodcastFeedEntry>>();
-            value.data.forEach(element => {
-                let exists = fs.existsSync(this._pathBuilder(element.id));
+        _xmlFeed.subscribe((value: PodcastFetch) => {
+            const dataObservables: Array<Observable<PodcastFeedEntry>> = new Array<Observable<PodcastFeedEntry>>();
+            value.data.forEach((element) => {
+                const exists = fs.existsSync(this._pathBuilder(element.id));
                 let entry: PodcastFeedEntry;
 
-                var obs: Observable<PodcastFeedEntry> = new Observable((observer) => {
+                const obs: Observable<PodcastFeedEntry> = new Observable((observer) => {
                     if (exists) {
-                        //filefound therefore 
+                        // filefound therefore 
                         console.log("Found " + element.name + ", skipping download.");
                         entry = { ...element };
                         entry.localPath = this._pathBuilder(element.id);
@@ -41,7 +42,7 @@ export class FeedTranspiler {
                 dataObservables.push(obs);
             });
             Observable.forkJoin(dataObservables).subscribe((data) => {
-                var payload: PodcastFeed = {...value};
+                const payload: PodcastFetch = {...value};
                 payload.data = data;
                 this.downloadFeed.next(payload);
             });
@@ -53,27 +54,27 @@ export class FeedTranspiler {
     }
 
     private _transpilePayload(stream: Readable, entry: PodcastFeedEntry): Observable<PodcastFeedEntry> {
-        let path = this._pathBuilder(entry.id);
+        const path = this._pathBuilder(entry.id);
         let obs: ConnectableObservable<PodcastFeedEntry> = Observable.create((observer: Observer<PodcastFeedEntry>) => {
             console.log("Transpiling ", entry.name);
-            let transpiler = ffmpeg(stream)
+            const transpiler = ffmpeg(stream)
                 .withNoVideo()
-                .audioBitrate('256k')
-                .audioCodec('libmp3lame')
+                .audioBitrate("256k")
+                .audioCodec("libmp3lame")
                 .audioChannels(2)
-                .format('mp3')
+                .format("mp3")
                 .output(path)
-                .on('info', (arg) => {
+                .on("info", (arg) => {
                     console.log(JSON.stringify(arg));
                 })
-                .on('end', () => {
-                    let payload = { ...entry };
+                .on("end", () => {
+                    const payload = { ...entry };
                     payload.localPath = path;
                     observer.next(payload);
                     observer.complete();
                 });
             transpiler.run();
-        })
+        });
         return obs;
     }
 }

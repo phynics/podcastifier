@@ -20,6 +20,7 @@
     "request-promise-native": "^1.0.4",
     "rxjs": "^5.4.3",
     "stream": "0.0.2",
+    "tssqlite": "^1.0.1",
     "xml-parser": "^1.2.1",
     "ytdata": "0.x.x",
     "ytdl-core": "^0.17.1"
