@@ -1,5 +1,5 @@
 import { Observable } from "rxjs";
-import { ChannelListResponse, VideosListResponse, PlaylistListResponse, PlaylistItemListResponse } from "./Models";
+import { ChannelListResponse, PlaylistItemListResponse, PlaylistListResponse, VideosListResponse } from "./Models";
 export declare type ListPart = "auditDetails" | "brandingSettings" | "contentDetails" | "contentOwnerDetails" | "id" | "invideoPromotion" | "localizations" | "snippet" | "statistics" | "status" | "topicDetails" | "player" | "fileDetails" | "status";
 export declare class YTDataApi {
     private _kApiKey;

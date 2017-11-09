@@ -8,7 +8,9 @@
     "@types/node": "^8.0.28",
     "@types/podcast": "^0.1.28",
     "@types/request-promise-native": "^1.0.8",
+    "@types/sequelize": "^4.0.78",
     "@types/xml-parser": "^1.2.29",
+    "chalk": "^2.3.0",
     "express": "^4.15.4",
     "fluent-ffmpeg": "^2.1.2",
     "gulp": "^3.9.1",
@@ -19,15 +21,15 @@
     "request": "^2.83.0",
     "request-promise-native": "^1.0.4",
     "rxjs": "^5.4.3",
+    "sequelize": "^4.22.5",
+    "sqlite3": "^3.1.13",
     "stream": "0.0.2",
-    "tssqlite": "^1.0.1",
     "xml-parser": "^1.2.1",
     "ytdata": "./ytdata",
     "ytdl-core": "^0.17.1"
   },
   "devDependencies": {
     "del": "^3.0.0",
-    "gulp": "^3.9.1",
     "gulp-tslint": "^8.1.2",
     "gulp-typescript": "^3.2.3",
     "tslint": "^5.8.0",
@@ -36,7 +38,7 @@
   "scripts": {
     "start": "node dist/app.js",
     "build": "gulp compile:ts",
-    "deploy": "docker-compose up"
+    "deploy": "docker-compose up --build"
   },
   "author": "Atakan Dulker",
   "license": "MIT"

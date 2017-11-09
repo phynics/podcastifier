@@ -7,12 +7,10 @@ export interface ChannelResource {
         description: string;
         customUrl: string;
         publishedAt: string;
-        thumbnails: {
-            (key): {
-                url: string;
-                width: number;
-                height: number;
-            };
+        thumbnails: (key) => {
+            url: string;
+            width: number;
+            height: number;
         };
         defaultLanguage: string;
         localized: {
@@ -87,10 +85,10 @@ export interface ChannelResource {
             bannerTvHighImageUrl: string;
             bannerExternalUrl: string;
         };
-        hints: {
+        hints: Array<{
             property: string;
             value: string;
-        }[];
+        }>;
     };
     invideoPromotion?: {
         defaultTiming: {
@@ -102,7 +100,7 @@ export interface ChannelResource {
             type: string;
             cornerPosition: string;
         };
-        items: {
+        items: Array<{
             id: {
                 type: string;
                 videoId: string;
@@ -116,7 +114,7 @@ export interface ChannelResource {
             };
             customMessage: string;
             promotedByContentOwner: boolean;
-        }[];
+        }>;
         useSmartTiming: boolean;
     };
     auditDetails?: {
@@ -129,11 +127,9 @@ export interface ChannelResource {
         contentOwner: string;
         timeLinked: string;
     };
-    localizations?: {
-        (key): {
-            title: string;
-            description: string;
-        };
+    localizations?: (key) => {
+        title: string;
+        description: string;
     };
 }
 export interface PlaylistItemResource {
@@ -145,12 +141,10 @@ export interface PlaylistItemResource {
         channelId: string;
         title: string;
         description: string;
-        thumbnails: {
-            (key): {
-                url: string;
-                width: number;
-                height: number;
-            };
+        thumbnails: (key) => {
+            url: string;
+            width: number;
+            height: number;
         };
         channelTitle: string;
         playlistId: string;
@@ -180,12 +174,10 @@ export interface PlaylistResource {
         channelId: string;
         title: string;
         description: string;
-        thumbnails: {
-            (key): {
-                url: string;
-                width: number;
-                height: number;
-            };
+        thumbnails: (key) => {
+            url: string;
+            width: number;
+            height: number;
         };
         channelTitle: string;
         tags: string[];
@@ -204,11 +196,9 @@ export interface PlaylistResource {
     player?: {
         embedHtml: string;
     };
-    localizations?: {
-        (key): {
-            title: string;
-            description: string;
-        };
+    localizations?: (key) => {
+        title: string;
+        description: string;
     };
 }
 export interface VideosResource {
@@ -220,12 +210,10 @@ export interface VideosResource {
         channelId: string;
         title: string;
         description: string;
-        thumbnails: {
-            (key): {
-                url: string;
-                width: number;
-                height: number;
-            };
+        thumbnails: (key) => {
+            url: string;
+            width: number;
+            height: number;
         };
         channelTitle: string;
         tags: [string];
@@ -363,7 +351,7 @@ export interface VideosResource {
         fileSize: number;
         fileType: string;
         container: string;
-        videoStreams: {
+        videoStreams: Array<{
             widthPixels: number;
             heightPixels: number;
             frameRateFps: number;
@@ -372,13 +360,13 @@ export interface VideosResource {
             bitrateBps: number;
             rotation: string;
             vendor: string;
-        }[];
-        audioStreams: {
+        }>;
+        audioStreams: Array<{
             channelCount: number;
             codec: string;
             bitrateBps: number;
             vendor: string;
-        }[];
+        }>;
         durationMs: number;
         bitrateBps: number;
         creationTime: string;
@@ -401,10 +389,10 @@ export interface VideosResource {
         processingErrors: string[];
         processingWarnings: string[];
         processingHints: string[];
-        tagSuggestions: {
+        tagSuggestions: Array<{
             tag: string;
             categoryRestricts: string[];
-        }[];
+        }>;
         editorSuggestions: string[];
     };
     liveStreamingDetails?: {
@@ -415,11 +403,9 @@ export interface VideosResource {
         concurrentViewers: number;
         activeLiveChatId: string;
     };
-    localizations?: {
-        (key): {
-            title: string;
-            description: string;
-        };
+    localizations?: (key) => {
+        title: string;
+        description: string;
     };
 }
 export interface ListResponse<T> {

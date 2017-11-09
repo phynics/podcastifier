@@ -25,7 +25,7 @@ var YTDataApi = /** @class */ (function () {
         return this._requestResourceList(parts, baseUrl, resourceId, playlistId, channelId, maxResults, pageToken, forUsername)
             .expand(function (page) {
             if (page.nextPageToken != null && shouldIterate) {
-                return _this._requestResourceList(parts, baseUrl, resourceId, channelId, maxResults, page.nextPageToken);
+                return _this._requestResourceList(parts, baseUrl, resourceId, playlistId, channelId, maxResults, page.nextPageToken);
             }
             else {
                 return rxjs_1.Observable.empty();
@@ -34,7 +34,9 @@ var YTDataApi = /** @class */ (function () {
             .reduce(function (acc, item) {
             var ret = acc;
             ret.items = acc.items.concat(item.items);
-            acc["nextPageToken"] && delete ret["nextPageToken"];
+            if (acc["nextPageToken"]) {
+                delete ret["nextPageToken"];
+            }
             return ret;
         });
     };

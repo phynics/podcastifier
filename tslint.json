@@ -1,6 +1,12 @@
 {
     "extends": "tslint:recommended",
     "rules": {
-        "variable-name":[true,"ban-keywords", "check-format", "allow-leading-underscore"]
+        "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore"],
+        "no-empty": false,
+        "no-console": false,
+        "object-literal-shorthand":false,
+        "no-string-literal": false,
+        "interface-name": false,
+        "object-literal-sort-keys": false
     }
 }

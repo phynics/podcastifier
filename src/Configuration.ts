@@ -1,7 +1,8 @@
-import { Config, Podcast, SourceModule, SourceType } from "./Models";
+import { Config, PodcastDefinition, SourceModule, SourceType } from "./Models";
 
 // tslint:disable:max-line-length
-export let Podcasts: Podcast[] = [
+// tslint:disable:variable-name
+export const Podcasts: PodcastDefinition[] = [
     {
         alias: "gkyprmrm",
         author: "Bir Meramfer",
@@ -17,8 +18,10 @@ export let Podcasts: Podcast[] = [
         title: "Geekyapar // Meram",
     },
 ];
-export let AppConfig: Config = {
+export const AppConfig: Config = {
+    apiKey: "smth",
     backlogSize: 3,
+    dbFile: "feeds.db",
     feedPath: "feeds/",
     filePath: "storage/",
     pollInterval: 43200000,

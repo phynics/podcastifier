@@ -7,19 +7,17 @@ export interface ChannelResource {
         description: string,
         customUrl: string,
         publishedAt: string,
-        thumbnails: {
-            (key): {
+        thumbnails: (key) => {
                 url: string,
                 width: number,
-                height: number
-            }
-        },
+                height: number,
+            },
         defaultLanguage: string,
         localized: {
             title: string,
-            description: string
+            description: string,
         },
-        country: string
+        country: string,
     };
     contentDetails?: {
         relatedPlaylists: {
@@ -27,24 +25,24 @@ export interface ChannelResource {
             favorites: string,
             uploads: string,
             watchHistory: string,
-            watchLater: string
-        }
+            watchLater: string,
+        },
     };
     statistics?: {
         viewCount: number,
         commentCount: number,
         subscriberCount: number,
         hiddenSubscriberCount: boolean,
-        videoCount: number
+        videoCount: number,
     };
     topicDetails?: {
         topicIds: string[],
-        topicCategories: string[]
+        topicCategories: string[],
     };
     status?: {
         privacyStatus: string,
         isLinked: boolean,
-        longUploadsStatus: string
+        longUploadsStatus: string,
     };
     brandingSettings?: {
         channel: {
@@ -61,12 +59,12 @@ export interface ChannelResource {
             unsubscribedTrailer: string,
             profileColor: string,
             defaultLanguage: string,
-            country: string
+            country: string,
         },
         watch: {
             textColor: string,
             backgroundColor: string,
-            featuredPlaylistId: string
+            featuredPlaylistId: string,
         },
         image: {
             bannerImageUrl: string,
@@ -85,59 +83,57 @@ export interface ChannelResource {
             bannerTvLowImageUrl: string,
             bannerTvMediumImageUrl: string,
             bannerTvHighImageUrl: string,
-            bannerExternalUrl: string
+            bannerExternalUrl: string,
         },
         hints:
-        {
+        Array<{
             property: string,
-            value: string
-        }[]
+            value: string,
+        }>,
 
     };
     invideoPromotion?: {
         defaultTiming: {
             type: string,
             offsetMs: number,
-            durationMs: number
+            durationMs: number,
         },
         position: {
             type: string,
-            cornerPosition: string
+            cornerPosition: string,
         },
         items:
-        {
+        Array<{
             id: {
                 type: string,
                 videoId: string,
                 websiteUrl: string,
-                recentlyUploadedBy: string
+                recentlyUploadedBy: string,
             },
             timing: {
                 type: string,
                 offsetMs: number,
-                durationMs: number
+                durationMs: number,
             },
             customMessage: string,
-            promotedByContentOwner: boolean
-        }[],
-        useSmartTiming: boolean
+            promotedByContentOwner: boolean,
+        }>,
+        useSmartTiming: boolean,
     };
     auditDetails?: {
         overallGoodStanding: boolean,
         communityGuidelinesGoodStanding: boolean,
         copyrightStrikesGoodStanding: boolean,
-        contentIdClaimsGoodStanding: boolean
+        contentIdClaimsGoodStanding: boolean,
     };
     contentOwnerDetails?: {
         contentOwner: string,
-        timeLinked: string
+        timeLinked: string,
     };
-    localizations?: {
-        (key): {
+    localizations?: (key) => {
             title: string,
-            description: string
-        }
-    };
+            description: string,
+        };
 }
 
 export interface PlaylistItemResource {
@@ -150,30 +146,28 @@ export interface PlaylistItemResource {
         channelId: string,
         title: string,
         description: string,
-        thumbnails: {
-            (key): {
+        thumbnails: (key) => {
                 url: string,
                 width: number,
                 height: number,
-            }
-        },
+            },
         channelTitle: string,
         playlistId: string,
         position: number,
         resourceId: {
             kind: string,
             videoId: string,
-        }
+        },
     };
     contentDetails?: {
         videoId: string,
         startAt: string,
         endAt: string,
         note: string,
-        videoPublishedAt: string
+        videoPublishedAt: string,
     };
     status?: {
-        privacyStatus: string
+        privacyStatus: string,
     };
 }
 
@@ -186,36 +180,32 @@ export interface PlaylistResource {
         channelId: string,
         title: string,
         description: string,
-        thumbnails: {
-            (key): {
+        thumbnails: (key) => {
                 url: string,
                 width: number,
-                height: number
-            }
-        },
+                height: number,
+            },
         channelTitle: string,
         tags: string[],
         defaultLanguage: string,
         localized: {
             title: string,
-            description: string
-        }
+            description: string,
+        },
     };
     status?: {
-        privacyStatus: string
+        privacyStatus: string,
     };
     contentDetails?: {
-        itemCount: number
+        itemCount: number,
     };
     player?: {
-        embedHtml: string
+        embedHtml: string,
     };
-    localizations?: {
-        (key): {
+    localizations?: (key) => {
             title: string,
-            description: string
-        }
-    }
+            description: string,
+        };
 }
 
 export interface VideosResource {
@@ -227,13 +217,11 @@ export interface VideosResource {
         channelId: string,
         title: string,
         description: string,
-        thumbnails: {
-            (key): {
+        thumbnails: (key) => {
                 url: string,
                 width: number,
-                height: number
-            }
-        },
+                height: number,
+            },
         channelTitle: string,
         tags: [
             string
@@ -243,9 +231,9 @@ export interface VideosResource {
         defaultLanguage: string,
         localized: {
             title: string,
-            description: string
+            description: string,
         },
-        defaultAudioLanguage: string
+        defaultAudioLanguage: string,
     };
     contentDetails?: {
         duration: string,
@@ -255,7 +243,7 @@ export interface VideosResource {
         licensedContent: boolean,
         regionRestriction: {
             allowed: string[],
-            blocked: string[]
+            blocked: string[],
         },
         contentRating: {
             acbRating: string,
@@ -326,10 +314,10 @@ export interface VideosResource {
             smaisRating: string,
             smsaRating: string,
             tvpgRating: string,
-            ytRating: string
+            ytRating: string,
         },
         projection: string,
-        hasCustomThumbnail: boolean
+        hasCustomThumbnail: boolean,
     };
     status?: {
         uploadStatus: string,
@@ -339,33 +327,33 @@ export interface VideosResource {
         publishAt: string,
         license: string,
         embeddable: boolean,
-        publicStatsViewable: boolean
+        publicStatsViewable: boolean,
     };
     statistics?: {
         viewCount: number,
         likeCount: number,
         dislikeCount: number,
         favoriteCount: number,
-        commentCount: number
+        commentCount: number,
     };
     player?: {
         embedHtml: string,
         embedHeight: number,
-        embedWidth: number
-    },
+        embedWidth: number,
+    };
     topicDetails?: {
         topicIds: string[],
         relevantTopicIds: string[],
-        topicCategories: string[]
+        topicCategories: string[],
     };
     recordingDetails?: {
         locationDescription: string,
         location: {
             latitude: number,
             longitude: number,
-            altitude: number
+            altitude: number,
         },
-        recordingDate: string
+        recordingDate: string,
     };
     fileDetails?: {
         fileName: string,
@@ -373,7 +361,7 @@ export interface VideosResource {
         fileType: string,
         container: string,
         videoStreams:
-        {
+        Array<{
             widthPixels: number,
             heightPixels: number,
             frameRateFps: number,
@@ -381,46 +369,46 @@ export interface VideosResource {
             codec: string,
             bitrateBps: number,
             rotation: string,
-            vendor: string
-        }[]
+            vendor: string,
+        }>
         ,
         audioStreams:
-        {
+        Array<{
             channelCount: number,
             codec: string,
             bitrateBps: number,
-            vendor: string
-        }[]
+            vendor: string,
+        }>
         ,
         durationMs: number,
         bitrateBps: number,
-        creationTime: string
+        creationTime: string,
     };
     processingDetails?: {
         processingStatus: string,
         processingProgress: {
             partsTotal: number,
             partsProcessed: number,
-            timeLeftMs: number
+            timeLeftMs: number,
         },
         processingFailureReason: string,
         fileDetailsAvailability: string,
         processingIssuesAvailability: string,
         tagSuggestionsAvailability: string,
         editorSuggestionsAvailability: string,
-        thumbnailsAvailability: string
+        thumbnailsAvailability: string,
     };
     suggestions?: {
         processingErrors: string[],
         processingWarnings: string[],
         processingHints: string[],
         tagSuggestions:
-        {
+        Array<{
             tag: string,
-            categoryRestricts: string[]
-        }[]
+            categoryRestricts: string[],
+        }>
         ,
-        editorSuggestions: string[]
+        editorSuggestions: string[],
     };
     liveStreamingDetails?: {
         actualStartTime: string,
@@ -428,14 +416,12 @@ export interface VideosResource {
         scheduledStartTime: string,
         scheduledEndTime: string,
         concurrentViewers: number,
-        activeLiveChatId: string
+        activeLiveChatId: string,
     };
-    localizations?: {
-        (key): {
+    localizations?: (key) => {
             title: string,
-            description: string
-        }
-    };
+            description: string,
+        };
 }
 
 export interface ListResponse<T> {
@@ -445,12 +431,12 @@ export interface ListResponse<T> {
     prevPageToken?: string;
     pageInfo: {
         totalResults: number,
-        resultsPerPage: number
+        resultsPerPage: number,
     };
     items: T[];
 }
 
-export interface VideosListResponse extends ListResponse<VideosResource> { };
-export interface PlaylistListResponse extends ListResponse<PlaylistResource> { };
-export interface PlaylistItemListResponse extends ListResponse<PlaylistItemResource> { };
-export interface ChannelListResponse extends ListResponse<ChannelResource> { };
+export interface VideosListResponse extends ListResponse<VideosResource> { }
+export interface PlaylistListResponse extends ListResponse<PlaylistResource> { }
+export interface PlaylistItemListResponse extends ListResponse<PlaylistItemResource> { }
+export interface ChannelListResponse extends ListResponse<ChannelResource> { }

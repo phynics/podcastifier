@@ -2,14 +2,14 @@ import * as request from "request-promise-native";
 import { Observable } from "rxjs";
 import {
     ChannelListResponse,
-    VideosListResponse,
-    PlaylistListResponse,
+    ChannelResource,
+    ListResponse,
     PlaylistItemListResponse,
     PlaylistItemResource,
-    ChannelResource,
+    PlaylistListResponse,
     PlaylistResource,
+    VideosListResponse,
     VideosResource,
-    ListResponse
 } from "./Models";
 
 export type ListPart =
@@ -37,7 +37,7 @@ export class YTDataApi {
         shouldIterate: boolean,
         channelId?: string,
         maxResults?: number,
-        forUsername?: string
+        forUsername?: string,
     ): Observable<ChannelListResponse> {
         return this._retrieveResourceList<ChannelResource>(
             parts,
@@ -54,7 +54,7 @@ export class YTDataApi {
         parts: ListPart[] = ["contentDetails"],
         shouldIterate: boolean,
         playlistId?: string,
-        maxResults?: number
+        maxResults?: number,
     ): Observable<PlaylistItemListResponse> {
         return this._retrieveResourceList<PlaylistItemResource>(
             parts,
@@ -70,7 +70,7 @@ export class YTDataApi {
         parts: ListPart[],
         shouldIterate: boolean,
         playlistId?: string,
-        maxResults?: number
+        maxResults?: number,
     ): Observable<PlaylistListResponse> {
         return this._retrieveResourceList<PlaylistResource>(
             parts,
@@ -86,7 +86,7 @@ export class YTDataApi {
         parts: ListPart[],
         shouldIterate: boolean,
         videoId?: string,
-        maxResults?: number
+        maxResults?: number,
     ): Observable<VideosListResponse> {
         return this._retrieveResourceList<VideosResource>(
             parts,
@@ -95,7 +95,7 @@ export class YTDataApi {
             videoId,
             undefined,
             undefined,
-            maxResults
+            maxResults,
         );
     }
 
@@ -108,22 +108,41 @@ export class YTDataApi {
         channelId?: string,
         maxResults?: number,
         pageToken?: string,
-        forUsername?: string
+        forUsername?: string,
     ): Observable<ListResponse<T>> {
-        return this._requestResourceList<ListResponse<T>>(parts, baseUrl, resourceId, playlistId, channelId, maxResults, pageToken, forUsername)
+        return this._requestResourceList<ListResponse<T>>(
+            parts,
+            baseUrl,
+            resourceId,
+            playlistId,
+            channelId,
+            maxResults,
+            pageToken,
+            forUsername,
+        )
             .expand((page) => {
                 if (page.nextPageToken != null && shouldIterate) {
-                    return this._requestResourceList<ListResponse<T>>(parts, baseUrl, resourceId, channelId, maxResults, page.nextPageToken);
+                    return this._requestResourceList<ListResponse<T>>(
+                        parts,
+                        baseUrl,
+                        resourceId,
+                        playlistId,
+                        channelId,
+                        maxResults,
+                        page.nextPageToken,
+                    );
                 } else {
                     return Observable.empty();
                 }
             })
             .reduce((acc, item) => {
-                let ret = acc;
+                const ret = acc;
                 ret.items = acc.items.concat(item.items);
-                acc["nextPageToken"] && delete ret["nextPageToken"];
+                if (acc["nextPageToken"]) {
+                    delete ret["nextPageToken"];
+                }
                 return ret;
-            })
+            });
     }
     private _requestResourceList<T>(
         parts: ListPart[],
@@ -133,13 +152,13 @@ export class YTDataApi {
         channelId?: string,
         maxResults?: number,
         pageToken?: string,
-        forUsername?: string
+        forUsername?: string,
     ): Observable<T> {
         // A wild dragonite appeared.
-        const options: { [param: string]: String } = { key: this._kApiKey };
+        const options: { [param: string]: string } = { key: this._kApiKey };
 
         if (parts && parts.length > 0) {
-            options["part"] = parts.map(a => a.toString())
+            options["part"] = parts.map((a) => a.toString())
                 .reduce((a, b) => a + "," + b);
         }
         if (resourceId && resourceId.length > 0) {
