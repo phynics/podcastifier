@@ -8,7 +8,6 @@ import { YoutubeAdapter } from "./YoutubeAdapter";
 import * as chalk from "chalk";
 import * as express from "express";
 import * as fs from "fs";
-import "rxjs/add/operators";
 import { Observable } from "rxjs/Observable";
 
 export class Podcastifier {
@@ -25,42 +24,54 @@ export class Podcastifier {
         if (this._expressServer != null) {
             this._expressServer.listen(this._configuration.serverPort,
                 () => console.log(chalk.default.green("Started") +
-                    "express server at port " +
+                    " express server at port " +
                     this._configuration.serverPort +
                     "."));
         }
+
         this._databaseController = new DatabaseController(this._configuration.dbFile);
+        this._databaseController.init().subscribe(() => {
+            this._startAdapters();
+        });
+    }
+
+    private _startAdapters() {
+        console.log(chalk.default.green("Starting") + " YoutubeAdapter...");
         const ytAdapter = new YoutubeAdapter(this._databaseController, this._configuration.apiKey);
         this._adapters = {};
         this._adapters[ytAdapter.sourceType] = ytAdapter;
-        /*
-        this._feedGenerator = new Array<FeedGenerator>();
-        this._feedTranspiler = new Array<FeedTranspiler>();
-        */
-        _podcasts.forEach((podcast) => {
-            console.log("Found podcast", podcast.alias);
+        this._podcasts.forEach((podcast) => {
+            console.log(chalk.default.yellow("Found podcast"), podcast.alias);
             this._adapters[podcast.sourceModule].addPodcast(podcast)
                 .flatMap(() => {
-                    console.log("Cheking updates for", podcast.alias);
+                    console.log(chalk.default.yellow("Checking updates"), "for", podcast.alias);
                     return this._adapters[podcast.sourceModule].checkUpdates(podcast.alias);
                 })
                 .flatMap(() => this._pruneAndFetchFeedEntries(podcast.alias))
                 .flatMap(() => this._generateFeed(podcast))
-                .subscribe();
+                .subscribe(() => { console.log("test"); });
         });
     }
 
     private _pruneAndFetchFeedEntries(podcastAlias: string): Observable<void> {
         return this._databaseController
             .listEpisodes(podcastAlias)
-            .flatMap((episodes) => {
-                episodes.sort((a, b) => {
+            .map((array) => {
+                return array.sort((a, b) => {
                     const aDate = Date.parse(a.pubDate);
                     const bDate = Date.parse(b.pubDate);
                     return aDate - bDate;
                 });
-                const obs: Array<Observable<void>> = [];
-                episodes.slice(0, this._configuration.backlogSize - 1)
+            })
+            .map((episodes) => {
+                console.log(chalk.default.yellow("Fetching episodes ") + "for", podcastAlias);
+
+                console.log(chalk.default.redBright(
+                    JSON.stringify(
+                        episodes.map((ep, index) => [ep.id, index]),
+                    ),
+                ));
+                episodes.slice(0, this._configuration.backlogSize)
                     .forEach((pd) => {
                         if (pd.state === PodcastEntryState.NEW
                             || !pd.localPath) {
@@ -69,26 +80,25 @@ export class Podcastifier {
                             this._transpileFeedEntry(pd).subscribe((localPath) => {
                                 pd.localPath = localPath;
                                 pd.state = PodcastEntryState.TRANSPILED;
-                                obs.push(this._databaseController.tryAddEpisode(pd));
+                                this._databaseController.tryAddEpisode(pd).subscribe();
                             });
-
                         }
                     });
                 episodes.slice(this._configuration.backlogSize).forEach((pd) => {
                     if (pd.state !== PodcastEntryState.OLD
                         || pd.localPath) {
                         console.log(chalk.default.red("Prunning episode " + pd.id +
-                            "from podcast " + pd.id));
+                            " from podcast " + pd.podcastAlias));
                         pd.state = PodcastEntryState.OLD;
                         if (pd.localPath) {
-                            fs.unlink(pd.localPath, () => {
-                                pd.localPath = undefined;
-                                obs.push(this._databaseController.tryAddEpisode(pd));
-                            });
+                            Observable.bindCallback(fs.unlink)(pd.localPath)
+                                .map(() => {
+                                    pd.localPath = undefined;
+                                    this._databaseController.tryAddEpisode(pd).subscribe();
+                                });
                         }
                     }
                 });
-                return Observable.zip(obs, () => { });
             });
     }
 

@@ -25,9 +25,9 @@ export class YoutubeAdapter extends SourceAdapter {
         if (podcast.sourceModule !== this.sourceType) {
             return;
         }
-        return this._db.doesPodcastExist(podcast.alias).map((exists) => {
+        return this._db.doesPodcastExist(podcast.alias).flatMap((exists) => {
             if (exists) {
-                this._db.tryAddPodcast(podcast).subscribe();
+                return this._db.tryAddPodcast(podcast);
             } else {
                 let detailsObs: Observable<PodcastDefinition>;
                 if (podcast.sourceType === SourceType.Channel) {
@@ -81,10 +81,9 @@ export class YoutubeAdapter extends SourceAdapter {
                         });
                 }
                 if (!!detailsObs) {
-                    detailsObs.subscribe((pd) => {
-                        this._db.tryAddPodcast(pd).subscribe(() => {
-                            this.checkUpdates(pd.alias);
-                        });
+                    return detailsObs.flatMap((pd) => {
+                        pd.sourceModule = this.sourceType;
+                        return this._db.tryAddPodcast(pd);
                     });
                 }
             }
@@ -93,30 +92,35 @@ export class YoutubeAdapter extends SourceAdapter {
     }
 
     public checkUpdates(alias: string): Observable<void> {
-        return this._db.getPodcastFromAlias(alias).map((pod) => {
-            if (pod.sourceModule === this.sourceType) {
-                return;
-            }
-            this._pullPlaylistItemsDetails(pod.sourcePlaylistId)
-                .subscribe((playlistItems) => {
-                    playlistItems.forEach((fetchedEntry) => {
-                        this._db.doesEpisodeExist(fetchedEntry.videoId).subscribe((exists) => {
-                            if (!exists) {
-                                const dbEntry: PodcastFeedEntry = {} as PodcastFeedEntry;
-                                dbEntry.description = fetchedEntry.description;
-                                dbEntry.id = fetchedEntry.videoId;
-                                dbEntry.image = fetchedEntry.thumbnail;
-                                dbEntry.name = fetchedEntry.title;
-                                dbEntry.podcastAlias = alias;
-                                dbEntry.pubDate = fetchedEntry.date;
-                                dbEntry.remoteUrl = "https://www.youtube.com/watch?v=" + fetchedEntry.videoId;
-                                dbEntry.state = PodcastEntryState.NEW;
-                                this._db.tryAddEpisode(dbEntry).subscribe();
-                            }
-                        });
-                    });
-                });
-        });
+        return this._db.getPodcastFromAlias(alias)
+            .flatMap((pod) => {
+                if (pod.sourceModule === this.sourceType) {
+                    return Observable.empty();
+                }
+                return this._pullPlaylistItemsDetails(pod.sourcePlaylistId)
+                    .flatMap((fetchedList): Observable<IPlaylistItemsDetails> => {
+                        return Observable.of(...fetchedList);
+                    })
+                    .flatMap((fetchedEntry) => {
+                        return this._db.doesEpisodeExist(fetchedEntry.videoId)
+                            .flatMap((exists) => {
+                                if (!exists) {
+                                    const dbEntry: PodcastFeedEntry = {} as PodcastFeedEntry;
+                                    dbEntry.description = fetchedEntry.description;
+                                    dbEntry.id = fetchedEntry.videoId;
+                                    dbEntry.image = fetchedEntry.thumbnail;
+                                    dbEntry.name = fetchedEntry.title;
+                                    dbEntry.podcastAlias = alias;
+                                    dbEntry.pubDate = fetchedEntry.date;
+                                    dbEntry.remoteUrl = "https://www.youtube.com/watch?v=" + fetchedEntry.videoId;
+                                    dbEntry.state = PodcastEntryState.NEW;
+                                    return this._db.tryAddEpisode(dbEntry);
+                                } else {
+                                    return Observable.of(0);
+                                }
+                            });
+                    }).toArray().map(() => 0);
+            });
     }
 
     public checkAllUpdates(): Observable<void> {
@@ -128,7 +132,7 @@ export class YoutubeAdapter extends SourceAdapter {
                 }
             });
         }).subscribe();
-        return Observable.zip(obs, () => { return; });
+        return Observable.forkJoin(obs, () => { return; });
     }
 
     public handlePushUpdate(push: any) {
@@ -142,7 +146,7 @@ export class YoutubeAdapter extends SourceAdapter {
                 const fetch = raw.items[0];
                 const podcast = {} as IChannelDetails;
                 podcast.title = fetch.snippet.title;
-                podcast.thumbnail = fetch.snippet.thumbnails.["high"].url;
+                podcast.thumbnail = fetch.snippet.thumbnails["high"].url;
                 podcast.defaultPlaylist = fetch.contentDetails.relatedPlaylists.uploads;
                 podcast.channelUrl = "https://www.youtube.com/channel/" + channelId;
                 return podcast;
@@ -161,6 +165,7 @@ export class YoutubeAdapter extends SourceAdapter {
                     entry.description = item.snippet.description;
                     entry.thumbnail = item.snippet.thumbnails["high"].url;
                     entry.videoId = item.snippet.resourceId.videoId;
+                    playlist.push(entry);
                 });
                 return playlist;
             });
@@ -174,7 +179,7 @@ export class YoutubeAdapter extends SourceAdapter {
                 playlist.channelId = raw.items[0].snippet.channelId;
                 playlist.description = raw.items[0].snippet.description;
                 playlist.title = raw.items[0].snippet.title;
-                playlist.thumbnail = raw.items[0].snippet.thumbnails.["high"].url;
+                playlist.thumbnail = raw.items[0].snippet.thumbnails["high"].url;
                 playlist.playlistUrl = "https://www.youtube.com/playlist?list=" + playlistId;
                 return playlist;
             });

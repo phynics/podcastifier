@@ -2,6 +2,7 @@ tmp/**/*
 storage/**/*
 feeds/**/*
 dist/**/*
+src/Configuration.ts
 
 npm-debug.log
 node_modules

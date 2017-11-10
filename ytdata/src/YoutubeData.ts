@@ -179,9 +179,13 @@ export class YTDataApi {
         if (forUsername && forUsername.length > 0) {
             options["forUsername"] = forUsername;
         }
-
+        const uri = baseUrl + "?" + Object.getOwnPropertyNames(options)
+            .map((property) => {
+                return property + "=" + options[property];
+            })
+            .reduce((a, b) => a + "&" + b);
         return Observable.create((observer) => {
-            request.get(baseUrl, options).then((response) => {
+            request.get(uri + "?").then((response) => {
                 observer.next(JSON.parse(response) as T);
                 observer.complete();
             }).catch((error) => {

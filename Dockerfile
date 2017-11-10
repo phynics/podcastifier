@@ -8,9 +8,9 @@ RUN apt-get upgrade -y --force-yes
 RUN apt-get -y --force-yes install ffmpeg
 WORKDIR /usr/src/app
 COPY package.json .
-COPY dist/ dist/
 COPY ytdata/ ytdata/
 RUN npm install
+COPY dist/ dist/
 EXPOSE 8080
 RUN mkdir feeds
 RUN mkdir storage

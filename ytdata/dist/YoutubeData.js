@@ -65,8 +65,13 @@ var YTDataApi = /** @class */ (function () {
         if (forUsername && forUsername.length > 0) {
             options["forUsername"] = forUsername;
         }
+        var uri = baseUrl + "?" + Object.getOwnPropertyNames(options)
+            .map(function (property) {
+            return property + "=" + options[property];
+        })
+            .reduce(function (a, b) { return a + "&" + b; });
         return rxjs_1.Observable.create(function (observer) {
-            request.get(baseUrl, options).then(function (response) {
+            request.get(uri + "?").then(function (response) {
                 observer.next(JSON.parse(response));
                 observer.complete();
             }).catch(function (error) {
