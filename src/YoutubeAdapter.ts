@@ -27,7 +27,7 @@ export class YoutubeAdapter extends SourceAdapter {
         }
         return this._db.doesPodcastExist(podcast.alias).flatMap((exists) => {
             if (exists) {
-                return this._db.tryAddPodcast(podcast);
+                return this._db.addOrUpdatePodcast(podcast).map(() => { });
             } else {
                 let detailsObs: Observable<PodcastDefinition>;
                 if (podcast.sourceType === SourceType.Channel) {
@@ -83,7 +83,7 @@ export class YoutubeAdapter extends SourceAdapter {
                 if (!!detailsObs) {
                     return detailsObs.flatMap((pd) => {
                         pd.sourceModule = this.sourceType;
-                        return this._db.tryAddPodcast(pd);
+                        return this._db.addOrUpdatePodcast(pd).map(() => { });
                     });
                 }
             }
@@ -114,7 +114,7 @@ export class YoutubeAdapter extends SourceAdapter {
                                     dbEntry.pubDate = fetchedEntry.date;
                                     dbEntry.remoteUrl = "https://www.youtube.com/watch?v=" + fetchedEntry.videoId;
                                     dbEntry.state = PodcastEntryState.NEW;
-                                    return this._db.tryAddEpisode(dbEntry);
+                                    return this._db.addOrUpdateEpisode(dbEntry);
                                 } else {
                                     return Observable.of(0);
                                 }
@@ -124,15 +124,16 @@ export class YoutubeAdapter extends SourceAdapter {
     }
 
     public checkAllUpdates(): Observable<void> {
-        const obs = new Array<Observable<void>>();
-        this._db.listPodcasts().map((podcasts) => {
-            podcasts.forEach((pod) => {
+        return this._db.listPodcasts()
+            .flatMap((podcasts) => {
+                return Observable.of(...podcasts);
+            })
+            .flatMap((pod) => {
                 if (pod.sourceModule === this.sourceType) {
-                    obs.push(this.checkUpdates(pod.alias));
+                    return this.checkUpdates(pod.alias);
                 }
-            });
-        }).subscribe();
-        return Observable.forkJoin(obs, () => { return; });
+            })
+            .toArray().map(() => {});
     }
 
     public handlePushUpdate(push: any) {

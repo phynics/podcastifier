@@ -36,12 +36,12 @@ export class Podcastifier {
     }
 
     private _startAdapters() {
-        console.log(chalk.default.green("Starting") + " YoutubeAdapter...");
+        console.log(chalk.default.green("Starting"), "Adapters");
         const ytAdapter = new YoutubeAdapter(this._databaseController, this._configuration.apiKey);
         this._adapters = {};
         this._adapters[ytAdapter.sourceType] = ytAdapter;
         this._podcasts.forEach((podcast) => {
-            console.log(chalk.default.yellow("Found podcast"), podcast.alias);
+            console.log(chalk.default.yellow("Loaded podcast"), podcast.alias);
             this._adapters[podcast.sourceModule].addPodcast(podcast)
                 .flatMap(() => {
                     console.log(chalk.default.yellow("Checking updates"), "for", podcast.alias);
@@ -49,7 +49,7 @@ export class Podcastifier {
                 })
                 .flatMap(() => this._pruneAndFetchFeedEntries(podcast.alias))
                 .flatMap(() => this._generateFeed(podcast))
-                .subscribe(() => { console.log("test"); });
+                .subscribe(() => { console.log("Run completed."); });
         });
     }
 
@@ -60,28 +60,33 @@ export class Podcastifier {
                 return array.sort((a, b) => {
                     const aDate = Date.parse(a.pubDate);
                     const bDate = Date.parse(b.pubDate);
-                    return aDate - bDate;
+                    return bDate - aDate;
                 });
             })
-            .map((episodes) => {
+            .map((array) => array.filter((el) => el.id === "GfOIv_U6i7U"))
+            .flatMap((episodes) => {
                 console.log(chalk.default.yellow("Fetching episodes ") + "for", podcastAlias);
-
-                console.log(chalk.default.redBright(
-                    JSON.stringify(
-                        episodes.map((ep, index) => [ep.id, index]),
-                    ),
-                ));
+                const observables = new Array<Observable<void>>();
                 episodes.slice(0, this._configuration.backlogSize)
                     .forEach((pd) => {
                         if (pd.state === PodcastEntryState.NEW
                             || !pd.localPath) {
                             console.log(chalk.default.green("New episode " + pd.id +
-                                " from Podcast " + pd.podcastAlias));
-                            this._transpileFeedEntry(pd).subscribe((localPath) => {
-                                pd.localPath = localPath;
-                                pd.state = PodcastEntryState.TRANSPILED;
-                                this._databaseController.tryAddEpisode(pd).subscribe();
-                            });
+                                " from Podcast", pd.podcastAlias, pd.name));
+                            observables.push(this._transpileFeedEntry(pd)
+                                .do(() => console.log("check dis"))
+                                .flatMap((localPath) => {
+                                    pd.localPath = localPath;
+                                    pd.state = PodcastEntryState.TRANSPILED;
+                                    return this._databaseController.addOrUpdateEpisode(pd)
+                                        .map(() => { })
+                                        .do(() => {
+                                            console.log(chalk.default.green("Transpiled " + pd.id +
+                                                " from Podcast " + pd.podcastAlias));
+                                        });
+                                })
+                                .do(() => console.log("and dis")),
+                            );
                         }
                     });
                 episodes.slice(this._configuration.backlogSize).forEach((pd) => {
@@ -91,14 +96,17 @@ export class Podcastifier {
                             " from podcast " + pd.podcastAlias));
                         pd.state = PodcastEntryState.OLD;
                         if (pd.localPath) {
-                            Observable.bindCallback(fs.unlink)(pd.localPath)
-                                .map(() => {
-                                    pd.localPath = undefined;
-                                    this._databaseController.tryAddEpisode(pd).subscribe();
-                                });
+                            observables.push(
+                                Observable.bindCallback(fs.unlink)(pd.localPath)
+                                    .flatMap(() => {
+                                        pd.localPath = undefined;
+                                        return this._databaseController.addOrUpdateEpisode(pd)
+                                            .map(() => console.log("Should update episode"));
+                                    }));
                         }
                     }
                 });
+                return Observable.forkJoin(observables).map(() => {});
             });
     }
 
@@ -106,7 +114,8 @@ export class Podcastifier {
         if (pd.state === PodcastEntryState.NEW) {
             return FeedTranspiler.fetchAndTranspileEntry(pd, this._configuration.filePath, true);
         } else {
-            return Observable.empty();
+            console.log(JSON.stringify(pd));
+            return Observable.throw("Podcast is not marked new.");
         }
     }
 
@@ -121,7 +130,7 @@ export class Podcastifier {
                     this._configuration.serverURL + ":" + this._configuration.serverPort);
                 episodes.forEach((element) => {
                     element.state = PodcastEntryState.PUBLISHED;
-                    this._databaseController.tryAddEpisode(element).subscribe();
+                    this._databaseController.addOrUpdateEpisode(element).subscribe();
                 });
                 return xml;
             })

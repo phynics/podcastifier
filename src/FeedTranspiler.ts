@@ -23,11 +23,10 @@ export class FeedTranspiler {
         force: boolean = false,
     ): Observable<Readable> {
         const exists = fs.existsSync(this._pathBuilder(entry.id, storageDir));
-
         return Observable.create((observer) => {
             if (exists) {
                 if (force) {
-                    fs.unlinkSync(entry.localPath);
+                    fs.unlinkSync(this._pathBuilder(entry.id, storageDir));
                 } else {
                     observer.error("File already exists.");
                 }

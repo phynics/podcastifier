@@ -15,9 +15,13 @@ export class DatabaseController {
             dialect: "sqlite",
             storage: this._databasePath,
         });
-        this._db.authenticate().then(() => {
-            console.log("Database file loaded.");
-        });
+        this._db.authenticate()
+            .then(() => {
+                console.log("Database file loaded.");
+            })
+            .catch((err) => {
+                console.log("Error loading database file:", err);
+            });
         this._podcastModel = this._db.define("Podcasts", {
             alias: {
                 type: Sequelize.STRING,
@@ -51,7 +55,7 @@ export class DatabaseController {
             podcastAlias: Sequelize.STRING,
             pubDate: Sequelize.STRING,
             remoteUrl: Sequelize.STRING,
-            state: Sequelize.STRING,
+            state: Sequelize.INTEGER,
         });
     }
     public init(): Observable<void> {
@@ -63,9 +67,7 @@ export class DatabaseController {
         const condition = {
             where: { alias: name },
         };
-        return Observable.fromPromise(
-            this._podcastModel.findOne(condition),
-        )
+        return Observable.fromPromise(this._podcastModel.findOne(condition))
             .map((value) => {
                 if (!value) {
                     return false;
@@ -78,50 +80,60 @@ export class DatabaseController {
         const condition = {
             where: { id: vidId },
         };
-        return Observable.create((observer) => {
-            this._entryModel.findOne(condition)
-                .then((param) => {
-                    observer.next(param);
-                    observer.complete(param);
-                })
-                .catch((error) => {
-                    observer.error(error);
-                    observer.complete(error);
-                });
-        }).map((value) => {
-            if (!value) {
-                return false;
-            } else {
-                return true;
-            }
-        });
+        return Observable.fromPromise(this._entryModel.findOne(condition))
+            .map((value) => {
+                if (!value) {
+                    return false;
+                } else {
+                    return true;
+                }
+            });
     }
-    public tryAddPodcast(pod: PodcastDefinition): Observable<void> {
+    public addOrUpdatePodcast(pod: PodcastDefinition): Observable<boolean> {
         return Observable.fromPromise(
             this._podcastModel.findOne({ where: { alias: pod.alias } })
                 .then((item) => {
                     if (!item) {
-                        return this._podcastModel.create(pod).then(() => { return; });
+                        return this._podcastModel
+                            .create(pod)
+                            .then(() => true);
                     } else {
                         return this._podcastModel
                             .update(pod, { where: { alias: pod.alias } })
-                            .then(() => { return; });
+                            .then(() => false);
                     }
-                })).map(() => { return; });
+                }))
+            .do((result) => {
+                if (result) {
+                    console.log("Added podcast", pod.alias);
+                } else {
+                    console.log("Updated podcast", pod.alias);
+                }
+            });
     }
-    public tryAddEpisode(ep: PodcastFeedEntry): Observable<void> {
+    public addOrUpdateEpisode(ep: PodcastFeedEntry): Observable<boolean> {
         return Observable.fromPromise(
             this._entryModel.findOne({ where: { id: ep.id } })
                 .then((item) => {
+                    console.log("<3");
                     if (!item) {
-                        return this._entryModel.create(ep);
+                        return this._entryModel.create(ep)
+                            .then(() => true);
                     } else {
-                        console.log("updating..");
-                        return this._entryModel
-                            .update(ep, { where: { id: ep.id } })
-                            .then((map) => map[1][0]);
+                        return this._entryModel.update(ep, { where: { id: ep.id } })
+                            .then ((...args) => {
+                                console.log("<3", JSON.stringify(args));
+                            })
+                            .then(() => false);
                     }
-                })).map(() => { return; });
+                }))
+            .do((result) => {
+                if (result) {
+                    console.log("Added episode", ep.id);
+                } else {
+                    console.log("Updated episode", ep.id);
+                }
+            });
     }
     public listPodcasts(): Observable<PodcastDefinition[]> {
         return Observable.fromPromise(
