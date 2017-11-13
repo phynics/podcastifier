@@ -1,6 +1,4 @@
 tmp/**/*
-storage/**/*
-feeds/**/*
 dist/**/*
 src/Configuration.ts
 

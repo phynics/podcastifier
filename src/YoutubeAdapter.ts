@@ -21,77 +21,78 @@ export class YoutubeAdapter extends SourceAdapter {
         return SourceModule.Youtube;
     }
 
-    public addPodcast(podcast: PodcastDefinition): Observable<void> {
+    public addPodcast(podcast: PodcastDefinition): Observable<boolean> {
         if (podcast.sourceModule !== this.sourceType) {
             return;
         }
-        return this._db.doesPodcastExist(podcast.alias).flatMap((exists) => {
-            if (exists) {
-                return this._db.addOrUpdatePodcast(podcast).map(() => { });
-            } else {
-                let detailsObs: Observable<PodcastDefinition>;
-                if (podcast.sourceType === SourceType.Channel) {
-                    detailsObs = this._pullChannelDetails(podcast.sourceId)
-                        .map((cDetails) => {
-                            const pd: PodcastDefinition = { ...podcast };
+        return this._db.doesPodcastExist(podcast.alias)
+            .flatMap((exists) => {
+                if (exists) {
+                    return this._db.addOrUpdatePodcast(podcast);
+                } else {
+                    let detailsObs: Observable<PodcastDefinition>;
+                    if (podcast.sourceType === SourceType.Channel) {
+                        detailsObs = this._pullChannelDetails(podcast.sourceId)
+                            .map((cDetails) => {
+                                const pd: PodcastDefinition = { ...podcast };
+                                pd.sourceModule = this.sourceType;
+                                if (!pd.title) {
+                                    pd.title = cDetails.title;
+                                }
+                                if (!pd.description) {
+                                    pd.description = cDetails.description;
+                                }
+                                if (!pd.author) {
+                                    pd.author = cDetails.title;
+                                }
+                                if (!pd.itunesSubtitle) {
+                                    pd.itunesSubtitle = cDetails.description.substring(0, 84);
+                                }
+                                if (!pd.siteUrl) {
+                                    pd.siteUrl = cDetails.channelUrl;
+                                }
+                                if (!pd.sourcePlaylistId) {
+                                    pd.sourcePlaylistId = cDetails.defaultPlaylist;
+                                }
+                                return pd;
+                            });
+                    } else if (podcast.sourceType === SourceType.Playlist) {
+                        detailsObs = this._pullPlaylistDetails(podcast.sourceId)
+                            .map((pDetails) => {
+                                const pd: PodcastDefinition = { ...podcast };
+                                if (!pd.title) {
+                                    pd.title = pDetails.title;
+                                }
+                                if (!pd.description) {
+                                    pd.description = pDetails.description;
+                                }
+                                if (!pd.author) {
+                                    pd.author = pDetails.title;
+                                }
+                                if (!pd.itunesSubtitle) {
+                                    pd.itunesSubtitle = pDetails.description.substring(0, 84);
+                                }
+                                if (!pd.siteUrl) {
+                                    pd.siteUrl = pDetails.playlistUrl;
+                                }
+                                if (!pd.sourcePlaylistId) {
+                                    pd.sourcePlaylistId = podcast.sourceId;
+                                }
+                                return pd;
+                            });
+                    }
+                    if (!!detailsObs) {
+                        return detailsObs.flatMap((pd) => {
                             pd.sourceModule = this.sourceType;
-                            if (!pd.title) {
-                                pd.title = cDetails.title;
-                            }
-                            if (!pd.description) {
-                                pd.description = cDetails.description;
-                            }
-                            if (!pd.author) {
-                                pd.author = cDetails.title;
-                            }
-                            if (!pd.itunesSubtitle) {
-                                pd.itunesSubtitle = cDetails.description.substring(0, 84);
-                            }
-                            if (!pd.siteUrl) {
-                                pd.siteUrl = cDetails.channelUrl;
-                            }
-                            if (!pd.sourcePlaylistId) {
-                                pd.sourcePlaylistId = cDetails.defaultPlaylist;
-                            }
-                            return pd;
+                            return this._db.addOrUpdatePodcast(pd);
                         });
-                } else if (podcast.sourceType === SourceType.Playlist) {
-                    detailsObs = this._pullPlaylistDetails(podcast.sourceId)
-                        .map((pDetails) => {
-                            const pd: PodcastDefinition = { ...podcast };
-                            if (!pd.title) {
-                                pd.title = pDetails.title;
-                            }
-                            if (!pd.description) {
-                                pd.description = pDetails.description;
-                            }
-                            if (!pd.author) {
-                                pd.author = pDetails.title;
-                            }
-                            if (!pd.itunesSubtitle) {
-                                pd.itunesSubtitle = pDetails.description.substring(0, 84);
-                            }
-                            if (!pd.siteUrl) {
-                                pd.siteUrl = pDetails.playlistUrl;
-                            }
-                            if (!pd.sourcePlaylistId) {
-                                pd.sourcePlaylistId = podcast.sourceId;
-                            }
-                            return pd;
-                        });
+                    }
                 }
-                if (!!detailsObs) {
-                    return detailsObs.flatMap((pd) => {
-                        pd.sourceModule = this.sourceType;
-                        return this._db.addOrUpdatePodcast(pd).map(() => { });
-                    });
-                }
-            }
 
-        });
+            });
     }
 
-    public checkUpdates(alias: string): Observable<void> {
+    public checkUpdates(alias: string): Observable<boolean> {
         return this._db.getPodcastFromAlias(alias)
             .flatMap((pod) => {
                 if (pod.sourceModule === this.sourceType) {
@@ -116,28 +117,32 @@ export class YoutubeAdapter extends SourceAdapter {
                                     dbEntry.state = PodcastEntryState.NEW;
                                     return this._db.addOrUpdateEpisode(dbEntry);
                                 } else {
-                                    return Observable.of(0);
+                                    return Observable.of(false);
                                 }
                             });
-                    }).toArray().map(() => 0);
+                    })
+                    .toArray()
+                    .map((arr) => arr.filter((value) => value === true).length > 0 ? true : false);
             });
     }
 
-    public checkAllUpdates(): Observable<void> {
+    public checkAllUpdates(): Observable<PodcastDefinition[]> {
         return this._db.listPodcasts()
             .flatMap((podcasts) => {
                 return Observable.of(...podcasts);
             })
             .flatMap((pod) => {
                 if (pod.sourceModule === this.sourceType) {
-                    return this.checkUpdates(pod.alias);
+                    return this.checkUpdates(pod.alias).map(() => pod);
                 }
             })
-            .toArray().map(() => {});
+            .toArray();
     }
 
-    public handlePushUpdate(push: any) {
-        throw new Error("Received but can't handle" + push);
+    public pushUpdateHandlerProvider(uri: string): (push: any) => boolean {
+        return (push) => {
+            throw new Error("Received but can't handle" + push);
+        };
     }
 
     private _pullChannelDetails(channelId: string): Observable<IChannelDetails> {

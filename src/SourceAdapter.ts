@@ -11,19 +11,23 @@ export abstract class SourceAdapter {
     }
     /*
     * This method is called when a new podcast is added,
-    * such as when it is added or read from the configuration.
+    * such as when it is read from the configuration file.
+    * Returns true if passed podcast is new.
     */
-    public abstract addPodcast(podcast: PodcastDefinition): Observable<void>;
+    public abstract addPodcast(podcast: PodcastDefinition): Observable<boolean>;
     /*
-    * This method is invoked to update all podcast feeds.
+    * This updates all podcast feeds which is managed by this SourceAdapter.
+    * Returns definitions for updated podcasts.
     */
-    public abstract checkAllUpdates(): Observable<void>;
+    public abstract checkAllUpdates(): Observable<PodcastDefinition[]>;
     /*
     * This method is invoked to update the a particular podcast feed.
+    * Return true if there are updates.
     */
-    public abstract checkUpdates(alias: string): Observable<void>;
+    public abstract checkUpdates(alias: string): Observable<boolean>;
     /*
-    * This method is used when handling push updates.
+    * This method is used to setup push notification subscripstions and
+    * delivers a method for handling reception.
     */
-    public abstract handlePushUpdate(push: any);
+    public abstract pushUpdateHandlerProvider(uri: string): (push: any) => boolean;
 }

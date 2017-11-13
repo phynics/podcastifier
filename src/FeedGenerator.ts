@@ -32,7 +32,7 @@ export class FeedGenerator {
                 guid: element.id,
                 date: new Date(element.pubDate),
                 enclosure: {
-                    url: hostName + "/" + element.id + "/ep.mp3",
+                    url: hostName + "/files/" + element.id + "/ep.mp3",
                     mime: "audio/mpeg",
                 },
                 itunesImage: element.image,

@@ -55,7 +55,7 @@ export class FeedTranspiler {
                     .audioCodec("libmp3lame")
                     .audioChannels(2)
                     .format("mp3")
-                    .output(path)
+                    .output(__dirname + "/" + path)
                     .on("info", (arg) => {
                         console.log(JSON.stringify(arg));
                     })

@@ -5,22 +5,22 @@ import { PodcastDefinition, PodcastFeedEntry } from "./Models";
 
 export class DatabaseController {
     private _db: Sequelize.Sequelize;
-    private _podcastModel: Sequelize.Model<PodcastDefinition, PodcastDefinition>;
-    private _entryModel: Sequelize.Model<PodcastFeedEntry, PodcastFeedEntry>;
+    private _podcastModel: Sequelize.Model<Sequelize.Instance<PodcastDefinition>, PodcastDefinition>;
+    private _entryModel: Sequelize.Model<Sequelize.Instance<PodcastFeedEntry>, PodcastFeedEntry>;
 
     constructor(private _databasePath: string) {
         this._db = new Sequelize("Podcasts", "", "", {
             logging: false,
             host: "localhost",
             dialect: "sqlite",
-            storage: this._databasePath,
+            storage: __dirname + "/" + this._databasePath,
         });
         this._db.authenticate()
             .then(() => {
-                console.log("Database file loaded.");
+                console.log("[DB] Database loaded.");
             })
             .catch((err) => {
-                console.log("Error loading database file:", err);
+                console.log("[DB] Error loading database file:", err);
             });
         this._podcastModel = this._db.define("Podcasts", {
             alias: {
@@ -42,7 +42,7 @@ export class DatabaseController {
             state: Sequelize.STRING,
             title: Sequelize.STRING,
         });
-        this._entryModel = this._db.define<PodcastFeedEntry, PodcastFeedEntry>("PodcastFeedEntry", {
+        this._entryModel = this._db.define("PodcastFeedEntry", {
             id: {
                 type: Sequelize.STRING,
                 primaryKey: true,
@@ -98,16 +98,18 @@ export class DatabaseController {
                             .create(pod)
                             .then(() => true);
                     } else {
-                        return this._podcastModel
-                            .update(pod, { where: { alias: pod.alias } })
+                        Object.keys(pod).forEach((key) => {
+                            item[key] = pod[key];
+                        });
+                        return item.save()
                             .then(() => false);
                     }
                 }))
             .do((result) => {
                 if (result) {
-                    console.log("Added podcast", pod.alias);
+                    console.log("[DB] Added podcast", pod.alias);
                 } else {
-                    console.log("Updated podcast", pod.alias);
+                    console.log("[DB] Updated podcast", pod.alias);
                 }
             });
     }
@@ -115,29 +117,31 @@ export class DatabaseController {
         return Observable.fromPromise(
             this._entryModel.findOne({ where: { id: ep.id } })
                 .then((item) => {
-                    console.log("<3");
                     if (!item) {
                         return this._entryModel.create(ep)
+                            .then(() => {
+                            })
                             .then(() => true);
                     } else {
-                        return this._entryModel.update(ep, { where: { id: ep.id } })
-                            .then ((...args) => {
-                                console.log("<3", JSON.stringify(args));
-                            })
+                        Object.keys(ep).forEach((key) => {
+                            item[key] = ep[key];
+                        });
+                        return item.save()
                             .then(() => false);
                     }
                 }))
             .do((result) => {
                 if (result) {
-                    console.log("Added episode", ep.id);
+                    console.log("[DB]: Added episode", ep.id);
                 } else {
-                    console.log("Updated episode", ep.id);
+                    console.log("[DB]: Updated episode", ep.id);
                 }
             });
     }
     public listPodcasts(): Observable<PodcastDefinition[]> {
         return Observable.fromPromise(
-            this._podcastModel.findAll(),
+            this._podcastModel.findAll()
+                .then((instances) => instances.map((inst) => inst.get())),
         );
     }
     public listEpisodes(alias: string): Observable<PodcastFeedEntry[]> {
@@ -145,21 +149,27 @@ export class DatabaseController {
             where: { podcastAlias: alias },
         };
         return Observable.fromPromise(
-            this._entryModel.findAll(condition));
+            this._entryModel.findAll(condition)
+                .then((instances) => instances.map((inst) => inst.get())),
+        );
     }
     public getPodcastFromAlias(alias: string): Observable<PodcastDefinition> {
         const condition = {
             where: { alias: alias },
         };
         return Observable.fromPromise(
-            this._podcastModel.findOne(condition));
+            this._podcastModel.findOne(condition)
+                .then((instance) => instance.get()),
+        );
     }
     public getEpisodeFromId(id: string): Observable<PodcastFeedEntry> {
         const condition = {
             where: { id: id },
         };
         return Observable.fromPromise(
-            this._entryModel.findOne(condition));
+            this._entryModel.findOne(condition)
+                .then((instance) => instance.get()),
+        );
     }
 
 }

@@ -14,7 +14,7 @@ export class Podcastifier {
     private _expressServer: express.Express;
     private _databaseController: DatabaseController;
     private _adapters: { [type: number]: SourceAdapter };
-    // TODO: Setup polling and push notifications.
+
     constructor(
         private _configuration: Config,
         private _podcasts: PodcastDefinition[],
@@ -25,8 +25,8 @@ export class Podcastifier {
             this._expressServer.listen(this._configuration.serverPort,
                 () => console.log(chalk.default.green("Started") +
                     " express server at port " +
-                    this._configuration.serverPort +
-                    "."));
+                    this._configuration.serverPort + "."),
+            );
         }
 
         this._databaseController = new DatabaseController(this._configuration.dbFile);
@@ -40,6 +40,59 @@ export class Podcastifier {
         const ytAdapter = new YoutubeAdapter(this._databaseController, this._configuration.apiKey);
         this._adapters = {};
         this._adapters[ytAdapter.sourceType] = ytAdapter;
+        this._initialRun();
+        this._startPolling();
+    }
+
+    private _startPolling() {
+        Observable.interval(this._configuration.pollInterval)
+            .subscribe(() => {
+                console.log(chalk.default.yellow("Polling with " + this._configuration.pollInterval));
+                this._checkAllRun();
+            });
+    }
+
+    private _setupDirectories() {
+        fs.mkdir(__dirname + "/" + this._configuration.feedPath, () => { });
+        fs.mkdir(__dirname + "/" + this._configuration.filePath, () => { });
+    }
+
+    private _setupExpress() {
+        this._expressServer = express();
+        const app = this._expressServer;
+
+        app.get("/", (_, res) => {
+            res.send("Podcastifier is serving the following feeds: <hr> <br>"
+                + this._podcasts.map((value) => {
+                    return "<a href=\"" + this._configuration.serverURL + ":" +
+                        this._configuration.serverPort + "/feeds/" + value.alias +
+                        "/podcast.xml\">" + value.title + "</a>";
+                }).join("<br>"));
+        });
+
+        app.get("/feeds/:podcastid/podcast.xml", (req, res) => {
+            const podcastId: string = req.params.podcastid;
+            if (fs.existsSync(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml")) {
+                res.sendFile(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml");
+            }
+        });
+
+        app.get("/finicks", (_, res) => {
+            this._checkAllRun();
+            res.sendStatus(418);
+        });
+
+        app.get("/files/:fileid/ep.mp3", (req, res) => {
+            const fileId: string = req.params.fileid;
+            if (fs.existsSync(__dirname + "/" + this._configuration.filePath + fileId + ".mp3")) {
+                res.sendFile(__dirname + "/" + this._configuration.filePath + fileId + ".mp3");
+            } else {
+                res.sendStatus(404);
+            }
+        });
+    }
+
+    private _initialRun() {
         this._podcasts.forEach((podcast) => {
             console.log(chalk.default.yellow("Loaded podcast"), podcast.alias);
             this._adapters[podcast.sourceModule].addPodcast(podcast)
@@ -49,8 +102,32 @@ export class Podcastifier {
                 })
                 .flatMap(() => this._pruneAndFetchFeedEntries(podcast.alias))
                 .flatMap(() => this._generateFeed(podcast))
-                .subscribe(() => { console.log("Run completed."); });
+                .subscribe(() => { console.log(chalk.default.yellow("Initial run completed.")); });
         });
+    }
+
+    private _checkAllRun() {
+        // TODO: Merge malfuncitons
+        Observable.merge(
+            [...Object.keys(this._adapters)
+                .map((adapterKey) => {
+                    return (this._adapters[adapterKey] as SourceAdapter).checkAllUpdates();
+                },
+            )],
+        )
+            .flatMap((updatedPods) => {
+                return Observable.of(...updatedPods);
+            })
+            .flatMap((updatedPod) => {
+                return this._pruneAndFetchFeedEntries(updatedPod.alias)
+                    .map(() => updatedPod);
+            })
+            .flatMap((pod) => this._generateFeed(pod).map(() => pod))
+            .toArray()
+            .subscribe((updatedPods) => {
+                console.log(chalk.default.yellow("Update run completed."), "Following podcasts are updated:");
+                console.log(updatedPods.map((pod) => pod.alias).reduce((a, b) => a + "," + b));
+            });
     }
 
     private _pruneAndFetchFeedEntries(podcastAlias: string): Observable<void> {
@@ -73,19 +150,18 @@ export class Podcastifier {
                             || !pd.localPath) {
                             console.log(chalk.default.green("New episode " + pd.id +
                                 " from Podcast", pd.podcastAlias, pd.name));
-                            observables.push(this._transpileFeedEntry(pd)
-                                .do(() => console.log("check dis"))
-                                .flatMap((localPath) => {
-                                    pd.localPath = localPath;
-                                    pd.state = PodcastEntryState.TRANSPILED;
-                                    return this._databaseController.addOrUpdateEpisode(pd)
-                                        .map(() => { })
-                                        .do(() => {
-                                            console.log(chalk.default.green("Transpiled " + pd.id +
-                                                " from Podcast " + pd.podcastAlias));
-                                        });
-                                })
-                                .do(() => console.log("and dis")),
+                            observables.push(
+                                this._transpileFeedEntry(pd)
+                                    .flatMap((localPath) => {
+                                        pd.localPath = localPath;
+                                        pd.state = PodcastEntryState.TRANSPILED;
+                                        return this._databaseController.addOrUpdateEpisode(pd)
+                                            .map(() => { })
+                                            .do(() => {
+                                                console.log(chalk.default.green("Transpiled " + pd.id +
+                                                    " from Podcast " + pd.podcastAlias));
+                                            });
+                                    }),
                             );
                         }
                     });
@@ -102,11 +178,12 @@ export class Podcastifier {
                                         pd.localPath = undefined;
                                         return this._databaseController.addOrUpdateEpisode(pd)
                                             .map(() => console.log("Should update episode"));
-                                    }));
+                                    }),
+                            );
                         }
                     }
                 });
-                return Observable.forkJoin(observables).map(() => {});
+                return Observable.forkJoin(observables).map(() => { });
             });
     }
 
@@ -114,68 +191,30 @@ export class Podcastifier {
         if (pd.state === PodcastEntryState.NEW) {
             return FeedTranspiler.fetchAndTranspileEntry(pd, this._configuration.filePath, true);
         } else {
-            console.log(JSON.stringify(pd));
+            console.log("Podcast is not marked new.", pd.id);
             return Observable.throw("Podcast is not marked new.");
         }
     }
 
     private _generateFeed(podcast: PodcastDefinition): Observable<NodeJS.ErrnoException> {
         return this._databaseController.listEpisodes(podcast.alias)
-            .map((episodes) => {
+            .flatMap((episodes) => {
                 episodes = episodes.filter(
                     (pd) => pd.state === PodcastEntryState.PUBLISHED ||
                         pd.state === PodcastEntryState.TRANSPILED,
                 );
                 const xml = FeedGenerator.generateXml(podcast, episodes,
                     this._configuration.serverURL + ":" + this._configuration.serverPort);
+                const obs = new Array<Observable<boolean>>();
                 episodes.forEach((element) => {
                     element.state = PodcastEntryState.PUBLISHED;
-                    this._databaseController.addOrUpdateEpisode(element).subscribe();
+                    obs.push(this._databaseController.addOrUpdateEpisode(element));
                 });
-                return xml;
+                return Observable.forkJoin(obs).map(() => xml);
             })
             .flatMap((xml) => {
                 return this._saveXml(xml, podcast.alias);
             });
-    }
-
-    private _setupDirectories() {
-        fs.mkdir(__dirname + "/" + this._configuration.feedPath, () => { });
-        fs.mkdir(__dirname + "/" + this._configuration.filePath, () => { });
-    }
-
-    private _setupExpress() {
-        this._expressServer = express();
-        const app = this._expressServer;
-
-        app.get("/", (_, res) => {
-            res.send("Podcastifier is serving the following feeds: <hr> <br>"
-                + this._podcasts.map((value) => {
-                    return "<a href=\"" + this._configuration.serverURL + ":" +
-                        this._configuration.serverPort + "/feeds/" + value.alias +
-                        "/podcast.xml\">" + value.title + "</a>";
-                }).join("<br>"));
-        });
-        app.get("/feeds/:podcastid/podcast.xml", (req, res) => {
-            const podcastId: string = req.params.podcastid;
-            if (fs.existsSync(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml")) {
-                res.sendFile(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml");
-            }
-        });
-        /*
-        app.get("/finicks", (_, res) => {
-            this._databaseController.forEach((item) => {
-                item.forceCheck();
-            });
-            res.sendStatus(418);
-        });
-        */
-        app.get("/:fileid/ep.mp3", (req, res) => {
-            const fileId: string = req.params.fileid;
-            if (fs.existsSync(__dirname + "/" + this._configuration.filePath + fileId + ".mp3")) {
-                res.sendFile(__dirname + "/" + this._configuration.filePath + fileId + ".mp3");
-            }
-        });
     }
 
     private _saveXml(xml: string, alias: string): Observable<NodeJS.ErrnoException> {
