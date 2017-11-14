@@ -12,6 +12,4 @@ COPY ytdata/ ytdata/
 RUN npm install
 COPY dist/ dist/
 EXPOSE 8080
-RUN mkdir feeds
-RUN mkdir storage
 CMD ["node", "dist/app.js"]

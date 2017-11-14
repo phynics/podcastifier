@@ -18,8 +18,8 @@ export enum SourceType {
 }
 
 export enum SourceModule {
-    None,
-    Youtube,
+    None = 0,
+    Youtube = 1,
 }
 
 export interface PodcastFeedEntry {

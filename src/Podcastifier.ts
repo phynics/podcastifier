@@ -9,7 +9,7 @@ import * as chalk from "chalk";
 import * as express from "express";
 import * as fs from "fs";
 import { Observable } from "rxjs/Observable";
-
+// Push notifications and teardown logic
 export class Podcastifier {
     private _expressServer: express.Express;
     private _databaseController: DatabaseController;
@@ -107,13 +107,12 @@ export class Podcastifier {
     }
 
     private _checkAllRun() {
-        // TODO: Merge malfuncitons
         Observable.merge(
-            [...Object.keys(this._adapters)
+            ...Object.keys(this._adapters)
                 .map((adapterKey) => {
                     return (this._adapters[adapterKey] as SourceAdapter).checkAllUpdates();
                 },
-            )],
+            ),
         )
             .flatMap((updatedPods) => {
                 return Observable.of(...updatedPods);
@@ -124,9 +123,12 @@ export class Podcastifier {
             })
             .flatMap((pod) => this._generateFeed(pod).map(() => pod))
             .toArray()
+            .retry(3)
             .subscribe((updatedPods) => {
                 console.log(chalk.default.yellow("Update run completed."), "Following podcasts are updated:");
-                console.log(updatedPods.map((pod) => pod.alias).reduce((a, b) => a + "," + b));
+                console.log(updatedPods.length > 0 ?
+                     updatedPods.map((pod) => pod.alias).reduce((a, b) => a + "," + b)
+                     : "None");
             });
     }
 
@@ -140,7 +142,6 @@ export class Podcastifier {
                     return bDate - aDate;
                 });
             })
-            .map((array) => array.filter((el) => el.id === "GfOIv_U6i7U"))
             .flatMap((episodes) => {
                 console.log(chalk.default.yellow("Fetching episodes ") + "for", podcastAlias);
                 const observables = new Array<Observable<void>>();

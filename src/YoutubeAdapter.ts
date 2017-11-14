@@ -128,15 +128,19 @@ export class YoutubeAdapter extends SourceAdapter {
 
     public checkAllUpdates(): Observable<PodcastDefinition[]> {
         return this._db.listPodcasts()
-            .flatMap((podcasts) => {
-                return Observable.of(...podcasts);
+            .map((pods) => {
+                // tslint:disable-next-line:triple-equals
+                return pods.filter((pod) => pod.sourceModule == this.sourceType);
             })
-            .flatMap((pod) => {
-                if (pod.sourceModule === this.sourceType) {
-                    return this.checkUpdates(pod.alias).map(() => pod);
-                }
-            })
-            .toArray();
+            .flatMap((pods) => {
+                const obs = new Array<Observable<PodcastDefinition>>();
+                pods.forEach((pod) => {
+                    obs.push(
+                        this.checkUpdates(pod.alias).map(() => pod),
+                    );
+                });
+                return Observable.forkJoin(obs);
+            });
     }
 
     public pushUpdateHandlerProvider(uri: string): (push: any) => boolean {
