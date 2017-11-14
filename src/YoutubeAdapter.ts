@@ -183,7 +183,7 @@ export class YoutubeAdapter extends SourceAdapter {
 
     private _pullPlaylistDetails(playlistId: string): Observable<IPlaylistDetails> {
         return this._ytData
-            .retrievePlaylistList(["snippet"], false, playlistId, 1)
+            .retrievePlaylistList(["snippet"], false, playlistId)
             .map((raw) => {
                 const playlist = {} as IPlaylistDetails;
                 playlist.channelId = raw.items[0].snippet.channelId;

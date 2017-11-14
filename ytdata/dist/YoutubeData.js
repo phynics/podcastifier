@@ -15,7 +15,7 @@ var YTDataApi = /** @class */ (function () {
         return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/playlistItems", shouldIterate, undefined, playlistId, undefined, maxResults);
     };
     YTDataApi.prototype.retrievePlaylistList = function (parts, shouldIterate, playlistId, maxResults) {
-        return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/playlists", shouldIterate, undefined, playlistId, undefined, maxResults);
+        return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/playlists", shouldIterate, playlistId, undefined, undefined, maxResults);
     };
     YTDataApi.prototype.retrieveVideosList = function (parts, shouldIterate, videoId, maxResults) {
         return this._retrieveResourceList(parts, "https://www.googleapis.com/youtube/v3/videos", shouldIterate, videoId, undefined, undefined, maxResults);
@@ -56,7 +56,7 @@ var YTDataApi = /** @class */ (function () {
         if (playlistId && playlistId.length > 0) {
             options["playlistId"] = playlistId;
         }
-        if (playlistId && playlistId.length > 0) {
+        if (channelId && channelId.length > 0) {
             options["channelId"] = channelId;
         }
         if (pageToken && pageToken.length > 0) {
@@ -71,7 +71,7 @@ var YTDataApi = /** @class */ (function () {
         })
             .reduce(function (a, b) { return a + "&" + b; });
         return rxjs_1.Observable.create(function (observer) {
-            request.get(uri + "?").then(function (response) {
+            request.get(uri).then(function (response) {
                 observer.next(JSON.parse(response));
                 observer.complete();
             }).catch(function (error) {

@@ -76,8 +76,8 @@ export class YTDataApi {
             parts,
             "https://www.googleapis.com/youtube/v3/playlists",
             shouldIterate,
-            undefined,
             playlistId,
+            undefined,
             undefined,
             maxResults);
     }
@@ -170,7 +170,7 @@ export class YTDataApi {
         if (playlistId && playlistId.length > 0) {
             options["playlistId"] = playlistId;
         }
-        if (playlistId && playlistId.length > 0) {
+        if (channelId && channelId.length > 0) {
             options["channelId"] = channelId;
         }
         if (pageToken && pageToken.length > 0) {
@@ -185,7 +185,7 @@ export class YTDataApi {
             })
             .reduce((a, b) => a + "&" + b);
         return Observable.create((observer) => {
-            request.get(uri + "?").then((response) => {
+            request.get(uri).then((response) => {
                 observer.next(JSON.parse(response) as T);
                 observer.complete();
             }).catch((error) => {
