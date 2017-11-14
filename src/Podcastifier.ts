@@ -8,12 +8,16 @@ import { YoutubeAdapter } from "./YoutubeAdapter";
 import * as chalk from "chalk";
 import * as express from "express";
 import * as fs from "fs";
+
 import { Observable } from "rxjs/Observable";
+import { Subject } from "rxjs/Subject";
+
 // Push notifications and teardown logic
 export class Podcastifier {
     private _expressServer: express.Express;
     private _databaseController: DatabaseController;
     private _adapters: { [type: number]: SourceAdapter };
+    private _timer: Subject<number>;
 
     constructor(
         private _configuration: Config,
@@ -45,7 +49,10 @@ export class Podcastifier {
     }
 
     private _startPolling() {
+        this._timer = Subject.create();
         Observable.interval(this._configuration.pollInterval)
+            .subscribe(() => this._timer.next(0));
+        this._timer.throttleTime(3600000)
             .subscribe(() => {
                 console.log(chalk.default.yellow("Polling with " + this._configuration.pollInterval));
                 this._checkAllRun();
@@ -78,7 +85,7 @@ export class Podcastifier {
         });
 
         app.get("/finicks", (_, res) => {
-            this._checkAllRun();
+            this._timer.next(0);
             res.sendStatus(418);
         });
 
