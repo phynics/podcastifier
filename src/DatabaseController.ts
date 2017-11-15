@@ -58,14 +58,25 @@ export class DatabaseController {
             state: Sequelize.INTEGER,
         });
     }
+
+    /**
+     * Syncs ORMs to the database.
+     * @returns Observable to indicate end of the operation.
+     */
     public init(): Observable<void> {
         const a = Observable.fromPromise(this._podcastModel.sync());
         const b = Observable.fromPromise(this._entryModel.sync());
         return Observable.forkJoin([a, b], () => { return; });
     }
-    public doesPodcastExist(name: string): Observable<boolean> {
+
+    /**
+     * Checks whether a podcast is already on the database.
+     * @param alias Podcast alias to be checked
+     * @returns Boolean Observable that returns true if the podcast exists.
+     */
+    public doesPodcastExist(alias: string): Observable<boolean> {
         const condition = {
-            where: { alias: name },
+            where: { alias: alias },
         };
         return Observable.fromPromise(this._podcastModel.findOne(condition))
             .map((value) => {
@@ -76,9 +87,15 @@ export class DatabaseController {
                 }
             });
     }
-    public doesEpisodeExist(vidId: string): Observable<boolean> {
+
+    /**
+     * Checks whether an episode is already on the database.
+     * @param id id for the episode
+     * @returns Boolean Observable that returns true if the episode exists.
+     */
+    public doesEpisodeExist(id: string): Observable<boolean> {
         const condition = {
-            where: { id: vidId },
+            where: { id: id },
         };
         return Observable.fromPromise(this._entryModel.findOne(condition))
             .map((value) => {
@@ -89,6 +106,13 @@ export class DatabaseController {
                 }
             });
     }
+
+    /**
+     * Tries to add the podcast to the database, updates its entry
+     * if it already exists.
+     * @param pod PodcastDefinition for the podcast to be added
+     * @returns Boolean Observable that returns true if the podcast is newly added.
+     */
     public addOrUpdatePodcast(pod: PodcastDefinition): Observable<boolean> {
         return Observable.fromPromise(
             this._podcastModel.findOne({ where: { alias: pod.alias } })
@@ -113,6 +137,13 @@ export class DatabaseController {
                 }
             });
     }
+
+    /**
+     * Tries to add the episode to the database, updates its entry
+     * if it already exists.
+     * @param ep PodcastFeedEntry for the episode to be added
+     * @returns Boolean Observable that returns true if the episode is newly added.
+     */
     public addOrUpdateEpisode(ep: PodcastFeedEntry): Observable<boolean> {
         return Observable.fromPromise(
             this._entryModel.findOne({ where: { id: ep.id } })
@@ -138,12 +169,38 @@ export class DatabaseController {
                 }
             });
     }
+
+    /**
+     * Lists all podcasts on the database.
+     * @returns Observable that return an array of Podcast definitions.
+     */
     public listPodcasts(): Observable<PodcastDefinition[]> {
         return Observable.fromPromise(
             this._podcastModel.findAll()
                 .then((instances) => instances.map((inst) => inst.get())),
         );
     }
+
+    /**
+     * Lists all podcasts on the database, which belong to a SourceAdapter.
+     * @param sourceModule the enum sourceModule value for the SourceAdapter.
+     * @returns Observable that return an array of Podcast definitions.
+     */
+    public listPodcastsFromSource(sourceModule: number): Observable<PodcastDefinition[]> {
+        const condition = {
+            where: { sourceModule: sourceModule },
+        };
+        return Observable.fromPromise(
+            this._podcastModel.findAll(condition)
+                .then((instances) => instances.map((inst) => inst.get())),
+        );
+    }
+
+    /**
+     * Lists all episodes on the database, which belong to a Podcast.
+     * @param alias Alias of the podcast
+     * @returns Observable that return an array of PodcastFeedEntry.
+     */
     public listEpisodes(alias: string): Observable<PodcastFeedEntry[]> {
         const condition = {
             where: { podcastAlias: alias },
@@ -153,6 +210,12 @@ export class DatabaseController {
                 .then((instances) => instances.map((inst) => inst.get())),
         );
     }
+
+    /**
+     * Gets the podcast definition for a given alias.
+     * @param alias alias to be checked
+     * @returns Observable that return a PodcastDefinition
+     */
     public getPodcastFromAlias(alias: string): Observable<PodcastDefinition> {
         const condition = {
             where: { alias: alias },
@@ -162,6 +225,12 @@ export class DatabaseController {
                 .then((instance) => instance.get()),
         );
     }
+
+    /**
+     * Gets the episode for a given id.
+     * @param id episode's id
+     * @return Observable that returns a PodcastFeedEntry
+     */
     public getEpisodeFromId(id: string): Observable<PodcastFeedEntry> {
         const condition = {
             where: { id: id },

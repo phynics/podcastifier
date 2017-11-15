@@ -6,7 +6,7 @@ import { PodcastDefinition, SourceModule } from "./Models";
 export abstract class SourceAdapter {
     constructor(_db: DatabaseController) { }
 
-    public get sourceType(): SourceModule {
+    public get sourceModuleType(): SourceModule {
         return SourceModule.None;
     }
     /*
@@ -14,7 +14,11 @@ export abstract class SourceAdapter {
     * such as when it is read from the configuration file.
     * Returns true if passed podcast is new.
     */
-    public abstract addPodcast(podcast: PodcastDefinition): Observable<boolean>;
+    public addPodcast(podcast: PodcastDefinition): Observable<boolean> {
+        if (podcast.sourceModule === this.sourceModuleType) {
+            return this.onAddPodcast(podcast);
+        }
+    }
     /*
     * This updates all podcast feeds which is managed by this SourceAdapter.
     * Returns definitions for updated podcasts.
@@ -30,4 +34,10 @@ export abstract class SourceAdapter {
     * delivers a method for handling reception.
     */
     public abstract pushUpdateHandlerProvider(uri: string): (push: any) => boolean;
+
+    /**
+     * This method implements addPodcat logic, returning
+     * true if podcast is new, false if it already exists.
+     */
+    protected abstract _onAddPodcast(podcast: PodcastDefinition): Observable<boolean>;
 }

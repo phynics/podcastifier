@@ -43,7 +43,7 @@ export class Podcastifier {
         console.log(chalk.default.green("Starting"), "Adapters");
         const ytAdapter = new YoutubeAdapter(this._databaseController, this._configuration.apiKey);
         this._adapters = {};
-        this._adapters[ytAdapter.sourceType] = ytAdapter;
+        this._adapters[ytAdapter.sourceModuleType] = ytAdapter;
         this._initialRun();
         this._startPolling();
     }

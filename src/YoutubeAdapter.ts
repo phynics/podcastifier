@@ -17,85 +17,22 @@ export class YoutubeAdapter extends SourceAdapter {
         this._ytData = new YTDataApi(_apiKey);
     }
 
-    get sourceType(): SourceModule {
+    /**
+     * @returns Type enumeration for this Source Adapter.
+     */
+    get sourceModuleType(): SourceModule {
         return SourceModule.Youtube;
     }
 
-    public addPodcast(podcast: PodcastDefinition): Observable<boolean> {
-        if (podcast.sourceModule !== this.sourceType) {
-            return;
-        }
-        return this._db.doesPodcastExist(podcast.alias)
-            .flatMap((exists) => {
-                if (exists) {
-                    return this._db.addOrUpdatePodcast(podcast);
-                } else {
-                    let detailsObs: Observable<PodcastDefinition>;
-                    if (podcast.sourceType === SourceType.Channel) {
-                        detailsObs = this._pullChannelDetails(podcast.sourceId)
-                            .map((cDetails) => {
-                                const pd: PodcastDefinition = { ...podcast };
-                                pd.sourceModule = this.sourceType;
-                                if (!pd.title) {
-                                    pd.title = cDetails.title;
-                                }
-                                if (!pd.description) {
-                                    pd.description = cDetails.description;
-                                }
-                                if (!pd.author) {
-                                    pd.author = cDetails.title;
-                                }
-                                if (!pd.itunesSubtitle) {
-                                    pd.itunesSubtitle = cDetails.description.substring(0, 84);
-                                }
-                                if (!pd.siteUrl) {
-                                    pd.siteUrl = cDetails.channelUrl;
-                                }
-                                if (!pd.sourcePlaylistId) {
-                                    pd.sourcePlaylistId = cDetails.defaultPlaylist;
-                                }
-                                return pd;
-                            });
-                    } else if (podcast.sourceType === SourceType.Playlist) {
-                        detailsObs = this._pullPlaylistDetails(podcast.sourceId)
-                            .map((pDetails) => {
-                                const pd: PodcastDefinition = { ...podcast };
-                                if (!pd.title) {
-                                    pd.title = pDetails.title;
-                                }
-                                if (!pd.description) {
-                                    pd.description = pDetails.description;
-                                }
-                                if (!pd.author) {
-                                    pd.author = pDetails.title;
-                                }
-                                if (!pd.itunesSubtitle) {
-                                    pd.itunesSubtitle = pDetails.description.substring(0, 84);
-                                }
-                                if (!pd.siteUrl) {
-                                    pd.siteUrl = pDetails.playlistUrl;
-                                }
-                                if (!pd.sourcePlaylistId) {
-                                    pd.sourcePlaylistId = podcast.sourceId;
-                                }
-                                return pd;
-                            });
-                    }
-                    if (!!detailsObs) {
-                        return detailsObs.flatMap((pd) => {
-                            pd.sourceModule = this.sourceType;
-                            return this._db.addOrUpdatePodcast(pd);
-                        });
-                    }
-                }
-
-            });
-    }
-
+    /**
+     * Checks updates to a single podcast.
+     * @param alias Alias for the podcast to be checked.
+     * @returns A Boolean Observable; true if the podcast is updated, false otherwise.
+     */
     public checkUpdates(alias: string): Observable<boolean> {
         return this._db.getPodcastFromAlias(alias)
             .flatMap((pod) => {
-                if (pod.sourceModule === this.sourceType) {
+                if (pod.sourceModule === this.sourceModuleType) {
                     return Observable.empty();
                 }
                 return this._pullPlaylistItemsDetails(pod.sourcePlaylistId)
@@ -126,27 +63,107 @@ export class YoutubeAdapter extends SourceAdapter {
             });
     }
 
+    /**
+     * Checks all podcasts managed by this SourceAdapter for updates.
+     * @returns Observable for the list of podcast aliases for the
+     * updated Podcasts.
+     */
     public checkAllUpdates(): Observable<PodcastDefinition[]> {
-        return this._db.listPodcasts()
-            .map((pods) => {
-                // tslint:disable-next-line:triple-equals
-                return pods.filter((pod) => pod.sourceModule == this.sourceType);
-            })
+        return this._db.listPodcastsFromSource(this.sourceModuleType)
             .flatMap((pods) => {
                 const obs = new Array<Observable<PodcastDefinition>>();
                 pods.forEach((pod) => {
                     obs.push(
-                        this.checkUpdates(pod.alias).map(() => pod),
+                        this.checkUpdates(pod.alias).map((result) => {
+                            if (result) {
+                                return pod;
+                            }
+                        }),
                     );
                 });
                 return Observable.forkJoin(obs);
             });
     }
 
+    /**
+     * Provides a function for handling push notifications.
+     * @param uri uri that received the push notification.
+     * @returns a function that is passed the push notification.
+     */
     public pushUpdateHandlerProvider(uri: string): (push: any) => boolean {
         return (push) => {
-            throw new Error("Received but can't handle" + push);
+            throw new Error("Received push notification but can't handle: \n" + push);
         };
+    }
+
+    /**
+     * Adds the passed podcast to the database or updates its entry
+     * if it already exists.
+     * @param podcast the podcast to be added
+     * @returns Boolean Observable that returns true if the podcast
+     * is added, false otherwise.
+     */
+    protected _onAddPodcast(podcast: PodcastDefinition): Observable<boolean> {
+        return this._db.doesPodcastExist(podcast.alias)
+            .flatMap((exists) => {
+                if (exists) {
+                    return this._db.addOrUpdatePodcast(podcast);
+                } else {
+                    let detailsObs: Observable<IChannelDetails | IPlaylistDetails>;
+                    if (podcast.sourceType === SourceType.Channel) {
+                        detailsObs = this._pullChannelDetails(podcast.sourceId);
+                    } else if (podcast.sourceType === SourceType.Playlist) {
+                        detailsObs = this._pullPlaylistDetails(podcast.sourceId);
+                    }
+                    if (!!detailsObs) {
+                        return detailsObs
+                            .map((details) => this._fillPodcastDefinition(podcast, details))
+                            .flatMap((pd) => {
+                                pd.sourceModule = this.sourceModuleType;
+                                return this._db.addOrUpdatePodcast(pd);
+                            });
+                    }
+                }
+
+            });
+    }
+
+    private _fillPodcastDefinition(
+        podcast: PodcastDefinition,
+        details: IChannelDetails | IPlaylistDetails,
+    ): PodcastDefinition {
+        const pd: PodcastDefinition = { ...podcast };
+        pd.sourceModule = this.sourceModuleType;
+        if (!pd.title) {
+            pd.title = details.title;
+        }
+        if (!pd.description) {
+            pd.description = details.description;
+        }
+        if (!pd.author) {
+            pd.author = details.title;
+        }
+        if (!pd.itunesSubtitle) {
+            pd.itunesSubtitle = details.description.substring(0, 84);
+        }
+
+        if (isIChannelDetails(details)) {
+            if (!pd.siteUrl) {
+                pd.siteUrl = details.channelUrl;
+            }
+            if (!pd.sourcePlaylistId) {
+                pd.sourcePlaylistId = details.defaultPlaylist;
+            }
+        } else if (isIPlaylistDetails(details)) {
+
+            if (!pd.siteUrl) {
+                pd.siteUrl = details.playlistUrl;
+            }
+            if (!pd.sourcePlaylistId) {
+                pd.sourcePlaylistId = podcast.sourceId;
+            }
+        }
+        return pd;
     }
 
     private _pullChannelDetails(channelId: string): Observable<IChannelDetails> {
@@ -205,12 +222,20 @@ interface IChannelDetails {
     defaultPlaylist: string;
 }
 
+function isIChannelDetails(arg: any): arg is IChannelDetails {
+    return arg !== undefined;
+}
+
 interface IPlaylistDetails {
     title: string;
     description: string;
     channelId: string;
     thumbnail: string;
     playlistUrl: string;
+}
+
+function isIPlaylistDetails(arg: any): arg is IPlaylistDetails {
+    return arg !== undefined;
 }
 
 interface IPlaylistItemsDetails {
