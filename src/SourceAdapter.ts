@@ -16,7 +16,7 @@ export abstract class SourceAdapter {
     */
     public addPodcast(podcast: PodcastDefinition): Observable<boolean> {
         if (podcast.sourceModule === this.sourceModuleType) {
-            return this.onAddPodcast(podcast);
+            return this._onAddPodcast(podcast);
         }
     }
     /*

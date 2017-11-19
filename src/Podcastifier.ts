@@ -50,13 +50,13 @@ export class Podcastifier {
 
     private _startPolling() {
         this._timer = Subject.create();
-        Observable.interval(this._configuration.pollInterval)
-            .subscribe(() => this._timer.next(0));
         this._timer.throttleTime(3600000)
             .subscribe(() => {
                 console.log(chalk.default.yellow("Polling with " + this._configuration.pollInterval));
                 this._checkAllRun();
             });
+        Observable.interval(this._configuration.pollInterval)
+            .subscribe(() => this._timer.next(0));
     }
 
     private _setupDirectories() {
@@ -134,8 +134,8 @@ export class Podcastifier {
             .subscribe((updatedPods) => {
                 console.log(chalk.default.yellow("Update run completed."), "Following podcasts are updated:");
                 console.log(updatedPods.length > 0 ?
-                     updatedPods.map((pod) => pod.alias).reduce((a, b) => a + "," + b)
-                     : "None");
+                    updatedPods.map((pod) => pod.alias).reduce((a, b) => a + "," + b)
+                    : "None");
             });
     }
 

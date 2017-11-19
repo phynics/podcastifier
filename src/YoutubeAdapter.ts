@@ -223,7 +223,9 @@ interface IChannelDetails {
 }
 
 function isIChannelDetails(arg: any): arg is IChannelDetails {
-    return arg !== undefined;
+    return arg.title !== undefined
+        && arg.thumbnail !== undefined
+        && arg.defaultPlaylist !== undefined;
 }
 
 interface IPlaylistDetails {
@@ -235,7 +237,9 @@ interface IPlaylistDetails {
 }
 
 function isIPlaylistDetails(arg: any): arg is IPlaylistDetails {
-    return arg !== undefined;
+    return arg.title !== undefined
+        && arg.thumbnail !== undefined
+        && arg.videoId !== undefined;
 }
 
 interface IPlaylistItemsDetails {
