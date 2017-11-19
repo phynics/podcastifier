@@ -46,6 +46,7 @@ export class Podcastifier {
         this._adapters[ytAdapter.sourceModuleType] = ytAdapter;
         this._initialRun();
         this._startPolling();
+        this._setupPushNotifications();
     }
 
     private _startPolling() {
@@ -97,6 +98,34 @@ export class Podcastifier {
                 res.sendStatus(404);
             }
         });
+    }
+
+    private _setupPushNotifications() {
+        Object.keys(this._adapters)
+            .filter((adapterKey) => {
+                return (this._adapters[adapterKey] as SourceAdapter).supportsPushNotifications;
+            })
+            .forEach((adapterKey) => {
+                const uri = this._configuration.serverURL + ":"
+                    + this._configuration.serverPort + "/"
+                    + "push/"
+                    + adapterKey;
+                const adapter = (this._adapters[adapterKey] as SourceAdapter);
+                this._expressServer.get("/push/" + adapterKey, (req, res) => {
+                    adapter.pushUpdateHandler([req, res])
+                        .subscribe((toUpdate) => {
+                            toUpdate.forEach((pod) => {
+                                this._databaseController.getPodcastFromAlias(pod)
+                                    .subscribe((podcast) => {
+                                        this._adapters[podcast.sourceModule]
+                                            .checkUpdates(pod)
+                                            .subscribe();
+                                    });
+                            });
+                        });
+                });
+                adapter.setupPushUpdates(uri);
+            });
     }
 
     private _initialRun() {

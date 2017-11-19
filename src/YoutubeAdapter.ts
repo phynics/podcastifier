@@ -1,5 +1,8 @@
 
+import { Request, Response } from "express";
+import * as request from "request";
 import { Observable } from "rxjs/Observable";
+import * as parser from "xml-parser";
 import { YTDataApi } from "ytdata";
 
 import { DatabaseController } from "./DatabaseController";
@@ -8,6 +11,8 @@ import { SourceAdapter } from "./SourceAdapter";
 
 export class YoutubeAdapter extends SourceAdapter {
     private _ytData: YTDataApi;
+    private _kPushHubUri = "http://pubsubhubbub.superfeedr.com/";
+    private _kPushHubTopic = "https://www.youtube.com/xml/feeds/videos.xml?channel_id=";
 
     constructor(
         private _db: DatabaseController,
@@ -22,6 +27,13 @@ export class YoutubeAdapter extends SourceAdapter {
      */
     get sourceModuleType(): SourceModule {
         return SourceModule.Youtube;
+    }
+
+    /**
+     * Whether this modules supports (can setup), push notifications.
+     */
+    get supportsPushNotifications(): boolean {
+        return true;
     }
 
     /**
@@ -84,16 +96,69 @@ export class YoutubeAdapter extends SourceAdapter {
                 return Observable.forkJoin(obs);
             });
     }
+    /**
+     * Sets up push updates for the given uri.
+     * @param uri the local webhook point.
+     */
+    public setupPushUpdates(uri: string): Observable<void> {
+        return this._db.listPodcastsFromSource(this.sourceModuleType)
+            .flatMap((podcasts) => {
+                const obs = new Array<Observable<string>>();
+                podcasts.forEach((element) => {
+                    if (element.sourceType === SourceType.Channel) {
+                        obs.push(Observable.of(element.sourceId));
+                    } else {
+                        const channelIdObs = this._pullPlaylistDetails(element.sourceId)
+                            .map((playlist) => playlist.channelId);
+                        obs.push(channelIdObs);
+                    }
+                });
+                return Observable.forkJoin(obs);
+            })
+            .flatMap((podcastChannelIds) => {
+                return Observable.forkJoin(podcastChannelIds.map((cid) => {
+                    return new Observable<string>((observer) => {
+                        request.post(this._kPushHubUri, {
+                            form: {
+                                "hub.mod": "subscribe",
+                                "hub.topic": this._kPushHubTopic + cid,
+                                "hub.callback": uri,
+                                "hub.verify": "sync",
+                            },
+                        }, (error: any, _, body: any) => {
+                            if (error) {
+                                observer.error(error as string);
+                            }
+                            observer.next(body as string);
+                            observer.complete();
+                        });
+                    });
+                }));
+            })
+            .map(() => { });
+    }
 
     /**
      * Provides a function for handling push notifications.
-     * @param uri uri that received the push notification.
-     * @returns a function that is passed the push notification.
+     * @param update received notification.
+     * @returns true if an update is necessary.
      */
-    public pushUpdateHandlerProvider(uri: string): (push: any) => boolean {
-        return (push) => {
-            throw new Error("Received push notification but can't handle: \n" + push);
-        };
+    public pushUpdateHandler(update: [Request, Response]): Observable<string[]> {
+        const req = update[0];
+        const res = update[1];
+
+        const challenge = req.param("hub.challenge");
+        if (challenge) {
+            res.send(challenge);
+        } else if (req.statusCode === 204) {
+            // success
+        } else if (req.statusCode === 422) {
+            // error
+        } else if (req.method === "POST") {
+            console.log(">>LOG:", req.body);
+            return this._onPushUpdate(this._parsePushXml(req.body));
+        }
+        return undefined;
     }
 
     /**
@@ -164,6 +229,55 @@ export class YoutubeAdapter extends SourceAdapter {
             }
         }
         return pd;
+    }
+
+    private _onPushUpdate(updates: Array<{ videoId: string, channelId: string }>)
+        : Observable<string[]> {
+        return this._db.listPodcastsFromSource(this.sourceModuleType)
+            .flatMap((pods) => {
+                return Observable.of(...pods);
+            })
+            .flatMap((pod) => {
+                return this._db.listEpisodes(pod.alias);
+            })
+            .flatMap((pod) => {
+                return Observable.of(...pod);
+            })
+            .toArray()
+            .map((episodes) => {
+                const toUpdate = new Array<string>();
+                toUpdate.push(
+                    updates.filter(
+                        (update) => {
+                            return !episodes.some((episode) => episode.id === update.videoId);
+                        },
+                    )
+                        .map((vale) => vale.channelId)[0],
+                );
+                return toUpdate;
+            })
+            .map((sey) => {
+                return sey.filter((x, i, a) => a.indexOf(x) === i);
+            });
+    }
+
+    private _parsePushXml(body: string): Array<{ videoId: string, channelId: string }> {
+        const xml = parser(body);
+        const result = new Array<{ videoId: string, channelId: string }>();
+
+        xml.root.children.filter((elem) => elem.name === "entry")
+            .forEach((elem) => {
+                const entry = {} as { videoId: string, channelId: string };
+                entry.videoId = elem.children
+                    .filter((e) => e.name === "yt:videoId")[0]
+                    .content;
+                entry.channelId = elem.children
+                    .filter((e) => e.name === "yt:channelId")[0]
+                    .content;
+                result.push(entry);
+            });
+
+        return result;
     }
 
     private _pullChannelDetails(channelId: string): Observable<IChannelDetails> {
