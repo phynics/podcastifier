@@ -114,25 +114,33 @@ export class Podcastifier {
                     + "push/"
                     + adapterKey;
                 const adapter = (this._adapters[adapterKey] as SourceAdapter);
-                this._expressServer.get("/push/" + adapterKey, (req, res) => {
-                    adapter.pushUpdateHandler([req, res])
-                        .flatMap((toUpdate) => {
-                            const obs = new Array<Observable<any>>();
-                            if (toUpdate !== undefined) {
-                                toUpdate.forEach((pod) => {
-                                    obs.push(
-                                        this._databaseController.getPodcastFromAlias(pod)
-                                            .flatMap((podcast) => {
-                                                return this._adapters[podcast.sourceModule]
-                                                    .checkUpdates(pod);
-                                            }));
-                                });
-                            }
-                            return Observable.forkJoin(obs);
-                        })
-                        .subscribe();
+                this._expressServer.all("/push/" + adapterKey, (req, res) => {
+                    console.log("Received push notification event");
+                    const handlerResult = adapter.pushUpdateHandler([req, res]);
+                    if (handlerResult) {
+                        handlerResult
+                            .flatMap((toUpdate) => {
+                                const obs = new Array<Observable<any>>();
+                                if (toUpdate !== undefined) {
+                                    toUpdate.forEach((pod) => {
+                                        obs.push(
+                                            this._databaseController.getPodcastFromAlias(pod)
+                                                .flatMap((podcast) => {
+                                                    return this._adapters[podcast.sourceModule]
+                                                        .checkUpdates(pod);
+                                                }));
+                                    });
+                                }
+                                return Observable.forkJoin(obs);
+                            })
+                            .subscribe();
+                    } else {
+                        res.sendStatus(404);
+                    }
                 });
-                adapter.setupPushUpdates(uri);
+                adapter.setupPushUpdates(uri).subscribe(() => {
+                    console.log("Successfully set up push notifications.");
+                });
             });
     }
 

@@ -11,7 +11,7 @@ import { SourceAdapter } from "./SourceAdapter";
 
 export class YoutubeAdapter extends SourceAdapter {
     private _ytData: YTDataApi;
-    private _kPushHubUri = "http://pubsubhubbub.superfeedr.com/";
+    private _kPushHubUri = "https://pubsubhubbub.appspot.com";
     private _kPushHubTopic = "https://www.youtube.com/xml/feeds/videos.xml?channel_id=";
 
     constructor(
@@ -107,7 +107,8 @@ export class YoutubeAdapter extends SourceAdapter {
             .flatMap((podcasts) => {
                 const obs = new Array<Observable<string>>();
                 podcasts.forEach((element) => {
-                    if (element.sourceType === SourceType.Channel) {
+                    // tslint:disable-next-line:triple-equals
+                    if (element.sourceType == SourceType.Channel) {
                         obs.push(Observable.of(element.sourceId));
                     } else {
                         const channelIdObs = this._pullPlaylistDetails(element.sourceId)
@@ -120,14 +121,17 @@ export class YoutubeAdapter extends SourceAdapter {
             .flatMap((podcastChannelIds) => {
                 return Observable.forkJoin(podcastChannelIds.map((cid) => {
                     return new Observable<string>((observer) => {
-                        request.post(this._kPushHubUri, {
+                        const options = {
+                            url: this._kPushHubUri,
                             form: {
-                                "hub.mod": "subscribe",
+                                "hub.mode": "subscribe",
                                 "hub.topic": this._kPushHubTopic + cid,
                                 "hub.callback": uri,
                                 "hub.verify": "sync",
                             },
-                        }, (error: any, _, body: any) => {
+                            encoding: "utf-8",
+                        };
+                        request.post(options, (error: any, _, body: any) => {
                             if (error) {
                                 observer.error(error as string);
                             }
@@ -149,15 +153,14 @@ export class YoutubeAdapter extends SourceAdapter {
         const req = update[0];
         const res = update[1];
 
-        const challenge = req.param("hub.challenge");
+        const challenge = req.query["hub.challenge"];
         if (challenge) {
-            res.send(challenge);
-        } else if (req.statusCode === 204) {
-            // success
-        } else if (req.statusCode === 422) {
-            // error
-        } else if (req.method === "POST") {
-            console.log(">>LOG:", req.body);
+            res.status(200).send(challenge);
+            return Observable.empty();
+        // tslint:disable-next-line:triple-equals
+        } else if (req.method == "POST") {
+            console.log("Received push update >>LOG:", req.body);
+            res.sendStatus(200);
             return this._onPushUpdate(this._parsePushXml(req.body));
         }
         return undefined;
