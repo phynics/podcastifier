@@ -39,7 +39,6 @@ export class DatabaseController {
             },
             sourcePlaylistId: Sequelize.STRING,
             sourceType: Sequelize.STRING,
-            state: Sequelize.STRING,
             title: Sequelize.STRING,
         });
         this._entryModel = this._db.define("PodcastFeedEntry", {

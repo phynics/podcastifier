@@ -86,9 +86,11 @@ export class YoutubeAdapter extends SourceAdapter {
                 const obs = new Array<Observable<PodcastDefinition>>();
                 pods.forEach((pod) => {
                     obs.push(
-                        this.checkUpdates(pod.alias).map((result) => {
+                        this.checkUpdates(pod.alias).flatMap((result) => {
                             if (result) {
-                                return pod;
+                                return Observable.of(pod);
+                            } else {
+                                return Observable.empty();
                             }
                         }),
                     );
@@ -220,7 +222,6 @@ export class YoutubeAdapter extends SourceAdapter {
                 pd.sourcePlaylistId = details.defaultPlaylist;
             }
         } else if (isIPlaylistDetails(details)) {
-
             if (!pd.siteUrl) {
                 pd.siteUrl = details.playlistUrl;
             }
@@ -353,7 +354,7 @@ interface IPlaylistDetails {
 function isIPlaylistDetails(arg: any): arg is IPlaylistDetails {
     return arg.title !== undefined
         && arg.thumbnail !== undefined
-        && arg.videoId !== undefined;
+        && arg.channelId !== undefined;
 }
 
 interface IPlaylistItemsDetails {

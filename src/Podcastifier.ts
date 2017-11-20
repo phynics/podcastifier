@@ -10,14 +10,14 @@ import * as express from "express";
 import * as fs from "fs";
 
 import { Observable } from "rxjs/Observable";
-import { Subject } from "rxjs/Subject";
+import { ReplaySubject } from "rxjs/ReplaySubject";
 
 // Push notifications and teardown logic
 export class Podcastifier {
     private _expressServer: express.Express;
     private _databaseController: DatabaseController;
     private _adapters: { [type: number]: SourceAdapter };
-    private _timer: Subject<number>;
+    private _timer: ReplaySubject<number>;
 
     constructor(
         private _configuration: Config,
@@ -40,7 +40,7 @@ export class Podcastifier {
     }
 
     private _startAdapters() {
-        console.log(chalk.default.green("Starting"), "Adapters");
+        console.log(chalk.default.green("Starting Adapters"));
         const ytAdapter = new YoutubeAdapter(this._databaseController, this._configuration.apiKey);
         this._adapters = {};
         this._adapters[ytAdapter.sourceModuleType] = ytAdapter;
@@ -50,14 +50,17 @@ export class Podcastifier {
     }
 
     private _startPolling() {
-        this._timer = Subject.create();
-        this._timer.throttleTime(3600000)
+        this._timer = new ReplaySubject(0);
+        this._timer
+            .throttleTime(3600000)
             .subscribe(() => {
                 console.log(chalk.default.yellow("Polling with " + this._configuration.pollInterval));
                 this._checkAllRun();
             });
         Observable.interval(this._configuration.pollInterval)
-            .subscribe(() => this._timer.next(0));
+            .subscribe(() => {
+                this._timer.next(0);
+            });
     }
 
     private _setupDirectories() {
@@ -113,16 +116,21 @@ export class Podcastifier {
                 const adapter = (this._adapters[adapterKey] as SourceAdapter);
                 this._expressServer.get("/push/" + adapterKey, (req, res) => {
                     adapter.pushUpdateHandler([req, res])
-                        .subscribe((toUpdate) => {
-                            toUpdate.forEach((pod) => {
-                                this._databaseController.getPodcastFromAlias(pod)
-                                    .subscribe((podcast) => {
-                                        this._adapters[podcast.sourceModule]
-                                            .checkUpdates(pod)
-                                            .subscribe();
-                                    });
-                            });
-                        });
+                        .flatMap((toUpdate) => {
+                            const obs = new Array<Observable<any>>();
+                            if (toUpdate !== undefined) {
+                                toUpdate.forEach((pod) => {
+                                    obs.push(
+                                        this._databaseController.getPodcastFromAlias(pod)
+                                            .flatMap((podcast) => {
+                                                return this._adapters[podcast.sourceModule]
+                                                    .checkUpdates(pod);
+                                            }));
+                                });
+                            }
+                            return Observable.forkJoin(obs);
+                        })
+                        .subscribe();
                 });
                 adapter.setupPushUpdates(uri);
             });
@@ -192,7 +200,8 @@ export class Podcastifier {
                                     .flatMap((localPath) => {
                                         pd.localPath = localPath;
                                         pd.state = PodcastEntryState.TRANSPILED;
-                                        return this._databaseController.addOrUpdateEpisode(pd)
+                                        return this._databaseController
+                                            .addOrUpdateEpisode(pd)
                                             .map(() => { })
                                             .do(() => {
                                                 console.log(chalk.default.green("Transpiled " + pd.id +
@@ -209,13 +218,21 @@ export class Podcastifier {
                             " from podcast " + pd.podcastAlias));
                         pd.state = PodcastEntryState.OLD;
                         if (pd.localPath) {
+                            console.log(chalk.default.red("Deleting episode " + pd.id));
                             observables.push(
-                                Observable.bindCallback(fs.unlink)(pd.localPath)
+                                Observable
+                                    .bindCallback(fs.unlink)(pd.localPath)
                                     .flatMap(() => {
                                         pd.localPath = undefined;
                                         return this._databaseController.addOrUpdateEpisode(pd)
-                                            .map(() => console.log("Should update episode"));
+                                            .map(() => { });
                                     }),
+                            );
+                        } else {
+                            observables.push(
+                                this._databaseController
+                                    .addOrUpdateEpisode(pd)
+                                    .map(() => { }),
                             );
                         }
                     }
