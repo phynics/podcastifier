@@ -152,9 +152,9 @@ export class YoutubeAdapter extends SourceAdapter {
             return undefined;
         } else if (req.method === "POST") {
             console.log(req.headers, req.header["link"], req.headers["link"]);
-            console.log(JSON.stringify(req.headers["link"].toString().split(new RegExp("/[<,>]/"))));
+            console.log(JSON.stringify(req.headers["link"].toString().split(new RegExp("[<,>]"))));
             const url = new URL(
-                req.headers["link"].toString().split(new RegExp("/[<,>]/"))[1],
+                req.headers["link"].toString().split(new RegExp("[<,>]"))[1],
             );
             const parsedResponse = url.searchParams.get("channel_id");
             console.log("Recovered topic", parsedResponse);

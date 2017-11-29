@@ -12,7 +12,7 @@ export const Podcasts: PodcastDefinition[] = [
         image: "https://yt3.ggpht.com/-dGNvm7rfF2w/AAAAAAAAAAI/AAAAAAAAAAA/d7X9GtVZOUs/s288-c-k-no-mo-rj-c0xffffff/photo.jpg",
         itunesSubtitle: "Geekyapar // Meram Youtube kanalı için Podcast akışı.",
         siteUrl: "https://www.youtube.com/channel/UCg6pmeCcngcd07afcdiF1pQ",
-        sourceId: "UCg6pmeCcngcd07afcdiF1pQ",
+        playlistId: "UCg6pmeCcngcd07afcdiF1pQ",
         sourceModule: SourceModule.Youtube,
         sourceType: SourceType.Channel,
         title: "Geekyapar // Meram",
