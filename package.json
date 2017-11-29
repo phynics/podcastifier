@@ -13,7 +13,6 @@
     "chalk": "^2.3.0",
     "express": "^4.15.4",
     "fluent-ffmpeg": "^2.1.2",
-    "gulp": "^3.9.1",
     "http": "0.0.0",
     "install": "^0.10.1",
     "npm": "^5.4.2",
@@ -30,15 +29,16 @@
   },
   "devDependencies": {
     "del": "^3.0.0",
-    "gulp-tslint": "^8.1.2",
-    "gulp-typescript": "^3.2.3",
     "tslint": "^5.8.0",
-    "typescript": "^2.5.3"
+    "typescript": "^2.5.3",
+    "gulp": "^3.9.1",
+    "gulp-tslint": "^8.1.2",
+    "gulp-typescript": "^3.2.3"
   },
   "scripts": {
     "start": "node dist/app.js",
-    "build": "gulp compile:ts",
-    "deploy": "docker-compose up --build"
+    "build": "gulp build:ts",
+    "deploy": "gulp watch:ts"
   },
   "author": "Atakan Dulker",
   "license": "MIT"

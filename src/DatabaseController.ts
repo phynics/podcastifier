@@ -32,13 +32,13 @@ export class DatabaseController {
             image: Sequelize.STRING,
             itunesSubtitle: Sequelize.STRING,
             siteUrl: Sequelize.STRING,
-            sourceId: Sequelize.STRING,
             sourceModule: {
                 type: Sequelize.STRING,
                 allowNull: true,
             },
-            sourcePlaylistId: Sequelize.STRING,
             sourceType: Sequelize.STRING,
+            channelId: Sequelize.STRING,
+            playlistId: Sequelize.STRING,
             title: Sequelize.STRING,
         });
         this._entryModel = this._db.define("PodcastFeedEntry", {
@@ -222,6 +222,17 @@ export class DatabaseController {
         return Observable.fromPromise(
             this._podcastModel.findOne(condition)
                 .then((instance) => instance.get()),
+        );
+    }
+
+    public getPodcastsFromChannel(channelId: string): Observable<PodcastDefinition[]> {
+        const condition = {
+            where: { channelId: channelId },
+        };
+        return Observable.fromPromise(
+            this._podcastModel
+                .findAll(condition)
+                .then((arr) => arr.map((instance) => instance.get())),
         );
     }
 

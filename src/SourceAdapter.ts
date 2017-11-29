@@ -47,9 +47,9 @@ export abstract class SourceAdapter {
 
     /*
     * This method is used to handle push notifications.
-    * Returns true if a database update is necessary.
+    * Returns the channel_id of the update
     */
-    public abstract pushUpdateHandler(update: [Request, Response]): Observable<string[]>;
+    public abstract pushUpdateHandler(update: [Request, Response]): string ;
 
     /**
      * This method implements addPodcat logic, returning

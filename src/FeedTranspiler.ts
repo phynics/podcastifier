@@ -49,21 +49,20 @@ export class FeedTranspiler {
         const obs: ConnectableObservable<string> =
             Observable.create((observer: Observer<string>) => {
                 console.log("Transpiling ", entry.name);
-                const transpiler = ffmpeg(stream)
+                ffmpeg(stream)
                     .withNoVideo()
                     .audioBitrate("256k")
                     .audioCodec("libmp3lame")
                     .audioChannels(2)
                     .format("mp3")
-                    .output(__dirname + "/" + path)
                     .on("info", (arg) => {
                         console.log(JSON.stringify(arg));
                     })
                     .on("end", () => {
                         observer.next(path);
                         observer.complete();
-                    });
-                transpiler.run();
+                    })
+                    .save(__dirname + "/" + path);
             });
         return obs;
     }

@@ -2,9 +2,9 @@
 import { Request, Response } from "express";
 import * as request from "request";
 import { Observable } from "rxjs/Observable";
-import * as parser from "xml-parser";
 import { YTDataApi } from "ytdata";
 
+import { URL } from "url";
 import { DatabaseController } from "./DatabaseController";
 import { PodcastDefinition, PodcastEntryState, PodcastFeedEntry, SourceModule, SourceType } from "./Models";
 import { SourceAdapter } from "./SourceAdapter";
@@ -47,7 +47,7 @@ export class YoutubeAdapter extends SourceAdapter {
                 if (pod.sourceModule === this.sourceModuleType) {
                     return Observable.empty();
                 }
-                return this._pullPlaylistItemsDetails(pod.sourcePlaylistId)
+                return this._pullPlaylistItemsDetails(pod.playlistId)
                     .flatMap((fetchedList): Observable<IPlaylistItemsDetails> => {
                         return Observable.of(...fetchedList);
                     })
@@ -104,42 +104,34 @@ export class YoutubeAdapter extends SourceAdapter {
      */
     public setupPushUpdates(uri: string): Observable<void> {
         return this._db.listPodcastsFromSource(this.sourceModuleType)
-            .flatMap((podcasts) => {
-                const obs = new Array<Observable<string>>();
-                podcasts.forEach((element) => {
-                    // tslint:disable-next-line:triple-equals
-                    if (element.sourceType == SourceType.Channel) {
-                        obs.push(Observable.of(element.sourceId));
-                    } else {
-                        const channelIdObs = this._pullPlaylistDetails(element.sourceId)
-                            .map((playlist) => playlist.channelId);
-                        obs.push(channelIdObs);
-                    }
-                });
-                return Observable.forkJoin(obs);
+            .map((podcasts) => {
+                return podcasts
+                    .map((pd) => pd.channelId)
+                    .filter((x, i, a) => a.indexOf(x) === i);
             })
             .flatMap((podcastChannelIds) => {
-                return Observable.forkJoin(podcastChannelIds.map((cid) => {
-                    return new Observable<string>((observer) => {
-                        const options = {
-                            url: this._kPushHubUri,
-                            form: {
-                                "hub.mode": "subscribe",
-                                "hub.topic": this._kPushHubTopic + cid,
-                                "hub.callback": uri,
-                                "hub.verify": "sync",
-                            },
-                            encoding: "utf-8",
-                        };
-                        request.post(options, (error: any, _, body: any) => {
-                            if (error) {
-                                observer.error(error as string);
-                            }
-                            observer.next(body as string);
-                            observer.complete();
+                return Observable.forkJoin(
+                    podcastChannelIds.map((cid) => {
+                        return new Observable<string>((observer) => {
+                            const options = {
+                                url: this._kPushHubUri,
+                                form: {
+                                    "hub.mode": "subscribe",
+                                    "hub.topic": this._kPushHubTopic + cid,
+                                    "hub.callback": uri,
+                                    "hub.verify": "sync",
+                                },
+                                encoding: "utf-8",
+                            };
+                            request.post(options, (error: any, _, body: any) => {
+                                if (error) {
+                                    observer.error(error as string);
+                                }
+                                observer.next(body as string);
+                                observer.complete();
+                            });
                         });
-                    });
-                }));
+                    }));
             })
             .map(() => { });
     }
@@ -149,21 +141,26 @@ export class YoutubeAdapter extends SourceAdapter {
      * @param update received notification.
      * @returns true if an update is necessary.
      */
-    public pushUpdateHandler(update: [Request, Response]): Observable<string[]> {
+    public pushUpdateHandler(update: [Request, Response]): string {
         const req = update[0];
         const res = update[1];
 
         const challenge = req.query["hub.challenge"];
         if (challenge) {
             res.status(200).send(challenge);
-            return Observable.empty();
-        // tslint:disable-next-line:triple-equals
-        } else if (req.method == "POST") {
-            console.log("Received push update >>LOG:", req.body);
+            // tslint:disable-next-line:triple-equals
+            return undefined;
+        } else if (req.method === "POST") {
+            console.log(req.headers, req.header["link"], req.headers["link"]);
+            console.log(JSON.stringify(req.headers["link"].toString().split(new RegExp("/[<,>]/"))));
+            const url = new URL(
+                req.headers["link"].toString().split(new RegExp("/[<,>]/"))[1],
+            );
+            const parsedResponse = url.searchParams.get("channel_id");
+            console.log("Recovered topic", parsedResponse);
             res.sendStatus(200);
-            return this._onPushUpdate(this._parsePushXml(req.body));
+            return parsedResponse;
         }
-        return undefined;
     }
 
     /**
@@ -180,10 +177,12 @@ export class YoutubeAdapter extends SourceAdapter {
                     return this._db.addOrUpdatePodcast(podcast);
                 } else {
                     let detailsObs: Observable<IChannelDetails | IPlaylistDetails>;
-                    if (podcast.sourceType === SourceType.Channel) {
-                        detailsObs = this._pullChannelDetails(podcast.sourceId);
-                    } else if (podcast.sourceType === SourceType.Playlist) {
-                        detailsObs = this._pullPlaylistDetails(podcast.sourceId);
+                    if (podcast.sourceType === SourceType.Channel
+                        && podcast.channelId !== undefined) {
+                        detailsObs = this._pullChannelDetails(podcast.channelId);
+                    } else if (podcast.sourceType === SourceType.Playlist
+                        && podcast.playlistId !== undefined) {
+                        detailsObs = this._pullPlaylistDetails(podcast.playlistId);
                     }
                     if (!!detailsObs) {
                         return detailsObs
@@ -221,67 +220,18 @@ export class YoutubeAdapter extends SourceAdapter {
             if (!pd.siteUrl) {
                 pd.siteUrl = details.channelUrl;
             }
-            if (!pd.sourcePlaylistId) {
-                pd.sourcePlaylistId = details.defaultPlaylist;
+            if (!pd.playlistId) {
+                pd.playlistId = details.defaultPlaylist;
             }
         } else if (isIPlaylistDetails(details)) {
             if (!pd.siteUrl) {
                 pd.siteUrl = details.playlistUrl;
             }
-            if (!pd.sourcePlaylistId) {
-                pd.sourcePlaylistId = podcast.sourceId;
+            if (!pd.channelId) {
+                pd.channelId = details.channelId;
             }
         }
         return pd;
-    }
-
-    private _onPushUpdate(updates: Array<{ videoId: string, channelId: string }>)
-        : Observable<string[]> {
-        return this._db.listPodcastsFromSource(this.sourceModuleType)
-            .flatMap((pods) => {
-                return Observable.of(...pods);
-            })
-            .flatMap((pod) => {
-                return this._db.listEpisodes(pod.alias);
-            })
-            .flatMap((pod) => {
-                return Observable.of(...pod);
-            })
-            .toArray()
-            .map((episodes) => {
-                const toUpdate = new Array<string>();
-                toUpdate.push(
-                    updates.filter(
-                        (update) => {
-                            return !episodes.some((episode) => episode.id === update.videoId);
-                        },
-                    )
-                        .map((vale) => vale.channelId)[0],
-                );
-                return toUpdate;
-            })
-            .map((sey) => {
-                return sey.filter((x, i, a) => a.indexOf(x) === i);
-            });
-    }
-
-    private _parsePushXml(body: string): Array<{ videoId: string, channelId: string }> {
-        const xml = parser(body);
-        const result = new Array<{ videoId: string, channelId: string }>();
-
-        xml.root.children.filter((elem) => elem.name === "entry")
-            .forEach((elem) => {
-                const entry = {} as { videoId: string, channelId: string };
-                entry.videoId = elem.children
-                    .filter((e) => e.name === "yt:videoId")[0]
-                    .content;
-                entry.channelId = elem.children
-                    .filter((e) => e.name === "yt:channelId")[0]
-                    .content;
-                result.push(entry);
-            });
-
-        return result;
     }
 
     private _pullChannelDetails(channelId: string): Observable<IChannelDetails> {

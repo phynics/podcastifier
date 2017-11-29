@@ -115,27 +115,25 @@ export class Podcastifier {
                     + adapterKey;
                 const adapter = (this._adapters[adapterKey] as SourceAdapter);
                 this._expressServer.all("/push/" + adapterKey, (req, res) => {
-                    console.log("Received push notification event");
+                    console.log("Received push notification event", JSON.stringify(req.query), req.headers, req.body);
                     const handlerResult = adapter.pushUpdateHandler([req, res]);
                     if (handlerResult) {
-                        handlerResult
-                            .flatMap((toUpdate) => {
-                                const obs = new Array<Observable<any>>();
-                                if (toUpdate !== undefined) {
-                                    toUpdate.forEach((pod) => {
-                                        obs.push(
-                                            this._databaseController.getPodcastFromAlias(pod)
-                                                .flatMap((podcast) => {
-                                                    return this._adapters[podcast.sourceModule]
-                                                        .checkUpdates(pod);
-                                                }));
-                                    });
-                                }
-                                return Observable.forkJoin(obs);
+                        this._databaseController
+                            .getPodcastsFromChannel(handlerResult)
+                            .flatMap((podcasts) => {
+                                return Observable.of(...podcasts);
                             })
-                            .subscribe();
-                    } else {
-                        res.sendStatus(404);
+                            .flatMap((podcast) => {
+                                return this._adapters[podcast.sourceModule]
+                                    .checkUpdates(podcast.alias).map((result) => {
+                                        if (result) {
+                                            return podcast.alias;
+                                        }
+                                    });
+                            })
+                            .subscribe((podcast) => {
+                                console.log(chalk.default.green("Updated"), podcast, "via push notification.");
+                            });
                     }
                 });
                 adapter.setupPushUpdates(uri).subscribe(() => {

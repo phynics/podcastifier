@@ -1,15 +1,15 @@
 export interface PodcastDefinition {
     alias: string;
-    sourceId: string;
     sourceModule: SourceModule;
     sourceType?: SourceType;
+    channelId?: string;
+    playlistId?: string;
     title?: string;
     description?: string;
     author?: string;
     itunesSubtitle?: string;
     image?: string;
     siteUrl?: string;
-    sourcePlaylistId?: string;
 }
 
 export enum SourceType {
