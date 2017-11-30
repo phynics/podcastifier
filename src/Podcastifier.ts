@@ -8,6 +8,8 @@ import { YoutubeAdapter } from "./YoutubeAdapter";
 import * as chalk from "chalk";
 import * as express from "express";
 import * as fs from "fs";
+import * as morgan from "morgan";
+import * as rfs from "rotating-file-stream";
 
 import { Observable } from "rxjs/Observable";
 import { ReplaySubject } from "rxjs/ReplaySubject";
@@ -18,6 +20,11 @@ export class Podcastifier {
     private _databaseController: DatabaseController;
     private _adapters: { [type: number]: SourceAdapter };
     private _timer: ReplaySubject<number>;
+    private _logStream = rfs("access.log", {
+        interval: "1d",
+        path: __dirname + this._configuration.logsPath,
+        initialRotation: true,
+    });
 
     constructor(
         private _configuration: Config,
@@ -66,12 +73,13 @@ export class Podcastifier {
     private _setupDirectories() {
         fs.mkdir(__dirname + "/" + this._configuration.feedPath, () => { });
         fs.mkdir(__dirname + "/" + this._configuration.filePath, () => { });
+        fs.mkdir(__dirname + "/" + this._configuration.logsPath, () => { });
     }
 
     private _setupExpress() {
         this._expressServer = express();
         const app = this._expressServer;
-
+        app.use(morgan("short", {stream: this._logStream}));
         app.get("/", (_, res) => {
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
                 + this._podcasts.map((value) => {

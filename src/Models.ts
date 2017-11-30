@@ -44,6 +44,7 @@ export interface Config {
     apiKey: string;
     feedPath: string;
     filePath: string;
+    logsPath: string;
     dbFile: string;
     pollInterval: number;
     backlogSize: number;

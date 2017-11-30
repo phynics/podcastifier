@@ -39,6 +39,7 @@ export const AppConfig: Config = {
     dbFile: "feeds.db",
     feedPath: "feeds/",
     filePath: "storage/",
+    logsPath: "logs/",
     pollInterval: 86400000,
     serverPort: 8080,
     serverURL: "http://18.194.120.95",
