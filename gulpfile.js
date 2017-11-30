@@ -37,6 +37,7 @@ gulp.task("service:ts", function() {
         node.kill();
     } else {
         node = exec.spawn('node', ['dist/app.js'], { stdio: 'inherit' })
+        gulp.log("Restarting.");
         node.on('close', function (code) {
             if (code === 8) {
                 gulp.log('Error detected, waiting for changes...');

@@ -132,7 +132,9 @@ export class Podcastifier {
                                     });
                             })
                             .subscribe((podcast) => {
-                                console.log(chalk.default.green("Updated"), podcast, "via push notification.");
+                                if (podcast) {
+                                    console.log(chalk.default.green("Updated"), podcast, "via push notification.");
+                                }
                             });
                     }
                 });
