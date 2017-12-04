@@ -13,6 +13,8 @@ export class YoutubeAdapter extends SourceAdapter {
     private _ytData: YTDataApi;
     private _kPushHubUri = "https://pubsubhubbub.appspot.com";
     private _kPushHubTopic = "https://www.youtube.com/xml/feeds/videos.xml?channel_id=";
+    private _pushUri: string;
+    private _pushResubscription;
 
     constructor(
         private _db: DatabaseController,
@@ -103,6 +105,7 @@ export class YoutubeAdapter extends SourceAdapter {
      * @param uri the local webhook point.
      */
     public setupPushUpdates(uri: string): Observable<void> {
+        this._pushUri = uri;
         return this._db.listPodcastsFromSource(this.sourceModuleType)
             .map((podcasts) => {
                 return podcasts
@@ -148,6 +151,15 @@ export class YoutubeAdapter extends SourceAdapter {
         const challenge = req.query["hub.challenge"];
         if (challenge) {
             res.status(200).send(challenge);
+            if (!this._pushResubscription) {
+                const timeout = req.query["hub.lease_seconds"] * 1000;
+                this._pushResubscription = setTimeout(() => {
+                    this._pushResubscription = undefined;
+                    this.setupPushUpdates(this._pushUri);
+                },
+                timeout,
+            );
+            }
             // tslint:disable-next-line:triple-equals
             return undefined;
         } else if (req.method === "POST") {

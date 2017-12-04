@@ -1,4 +1,5 @@
 var gulp = require("gulp");
+var gutil = require("gulp-util")
 var ts = require("gulp-typescript");
 var tslint = require("gulp-tslint");
 var tsProject = ts.createProject("tsconfig.json");
@@ -32,18 +33,18 @@ gulp.task("compile:ts", ["lint:ts"], function () {
         .pipe(gulp.dest("dist"));
 });
 
-gulp.task("service:ts", function() {
+gulp.task("service:ts", function () {
     if (node) {
+        gutil.log("Stopping service.")
         node.kill();
-    } else {
-        node = exec.spawn('node', ['dist/app.js'], { stdio: 'inherit' })
-        gulp.log("Restarting.");
-        node.on('close', function (code) {
-            if (code === 8) {
-                gulp.log('Error detected, waiting for changes...');
-            }
-        });
     }
+    gutil.log("Starting service.")
+    node = exec.spawn('node', ['dist/app.js'], { stdio: 'inherit' });
+    node.on('close', function (code) {
+        if (code === 8) {
+            gutil.log("Error detected, waiting for changes...");
+        }
+    });
 });
 
 gulp.task("watch:ts", ["compile:ts"], function () {

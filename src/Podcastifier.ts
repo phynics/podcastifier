@@ -22,7 +22,7 @@ export class Podcastifier {
     private _timer: ReplaySubject<number>;
     private _logStream = rfs("access.log", {
         interval: "1d",
-        path: __dirname + this._configuration.logsPath,
+        path: __dirname + "/" + this._configuration.logsPath,
         initialRotation: true,
     });
 
@@ -79,7 +79,7 @@ export class Podcastifier {
     private _setupExpress() {
         this._expressServer = express();
         const app = this._expressServer;
-        app.use(morgan("short", {stream: this._logStream}));
+        app.use(morgan("short", { stream: this._logStream }));
         app.get("/", (_, res) => {
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
                 + this._podcasts.map((value) => {
@@ -135,9 +135,20 @@ export class Podcastifier {
                                 return this._adapters[podcast.sourceModule]
                                     .checkUpdates(podcast.alias).map((result) => {
                                         if (result) {
-                                            return podcast.alias;
+                                            return podcast;
                                         }
                                     });
+                            })
+                            .flatMap((podcast) => {
+                                if (podcast) {
+                                    return this._generateFeed(podcast)
+                                        .map(() => podcast);
+                                }
+                            })
+                            .flatMap((podcast) => {
+                                if (podcast) {
+                                    return this._checkOnePodcast(podcast);
+                                }
                             })
                             .subscribe((podcast) => {
                                 if (podcast) {
@@ -177,19 +188,26 @@ export class Podcastifier {
             .flatMap((updatedPods) => {
                 return Observable.of(...updatedPods);
             })
-            .flatMap((updatedPod) => {
-                return this._pruneAndFetchFeedEntries(updatedPod.alias)
-                    .map(() => updatedPod);
+            .flatMap((pd) => {
+                return this._checkOnePodcast(pd);
             })
-            .flatMap((pod) => this._generateFeed(pod).map(() => pod))
             .toArray()
-            .retry(3)
             .subscribe((updatedPods) => {
                 console.log(chalk.default.yellow("Update run completed."), "Following podcasts are updated:");
                 console.log(updatedPods.length > 0 ?
                     updatedPods.map((pod) => pod.alias).reduce((a, b) => a + "," + b)
                     : "None");
             });
+    }
+
+    private _checkOnePodcast(podcast: PodcastDefinition): Observable<PodcastDefinition> {
+        return Observable.of(podcast)
+            .flatMap((updatedPod) => {
+                return this._pruneAndFetchFeedEntries(updatedPod.alias)
+                    .map(() => updatedPod);
+            })
+            .flatMap((pod) => this._generateFeed(pod).map(() => pod))
+            .retry(3);
     }
 
     private _pruneAndFetchFeedEntries(podcastAlias: string): Observable<void> {

@@ -13,6 +13,7 @@
     "chalk": "^2.3.0",
     "express": "^4.15.4",
     "fluent-ffmpeg": "^2.1.2",
+    "gulp-util": "^3.0.8",
     "http": "0.0.0",
     "install": "^0.10.1",
     "morgan": "^1.9.0",
