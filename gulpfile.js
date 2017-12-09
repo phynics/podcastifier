@@ -49,7 +49,7 @@ gulp.task("service:ts", function () {
 
 gulp.task("watch:ts", ["compile:ts"], function () {
     gulp.run("service:ts");
-    gulp.watch("src/**/*.ts", ["compile:ts"], function () {
+    return gulp.watch("src/**/*.ts", ["compile:ts"], function () {
         gulp.run("service:ts");
     });
 });

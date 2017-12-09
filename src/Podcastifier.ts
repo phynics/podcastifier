@@ -203,8 +203,10 @@ export class Podcastifier {
     private _checkOnePodcast(podcast: PodcastDefinition): Observable<PodcastDefinition> {
         return Observable.of(podcast)
             .flatMap((updatedPod) => {
-                return this._pruneAndFetchFeedEntries(updatedPod.alias)
-                    .map(() => updatedPod);
+                if (updatedPod) {
+                    return this._pruneAndFetchFeedEntries(updatedPod.alias)
+                        .map(() => updatedPod);
+                }
             })
             .flatMap((pod) => this._generateFeed(pod).map(() => pod))
             .retry(3);
