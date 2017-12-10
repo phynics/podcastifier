@@ -24,8 +24,6 @@ npm run deploy
 
 - Transpiler design should be rework to reduce coupling.
 
-- App should register and handle push updates.
-
 - FeedGenerator and FeedTranspiler are old code. They should be refactored to reduce coupling.
 
-- Express should keep simple statistics.
+- Implement an error handling scheme and rework pipelines
