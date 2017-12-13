@@ -12,14 +12,13 @@ import * as morgan from "morgan";
 import * as rfs from "rotating-file-stream";
 
 import { Observable } from "rxjs/Observable";
-import { ReplaySubject } from "rxjs/ReplaySubject";
+import { Subject } from "rxjs/Subject";
 
-// Push notifications and teardown logic
 export class Podcastifier {
     private _expressServer: express.Express;
     private _databaseController: DatabaseController;
     private _adapters: { [type: number]: SourceAdapter };
-    private _timer: ReplaySubject<number>;
+    private _timer: Subject<number>;
     private _logStream = rfs("access.log", {
         interval: "1d",
         path: __dirname + "/" + this._configuration.logsPath,
@@ -38,8 +37,10 @@ export class Podcastifier {
                     " express server at port " +
                     this._configuration.serverPort + "."),
             );
+        } else {
+            throw new Error("Cannot find an express server instance.");
         }
-
+        this._timer = new Subject();
         this._databaseController = new DatabaseController(this._configuration.dbFile);
         this._databaseController.init().subscribe(() => {
             this._startAdapters();
@@ -51,13 +52,18 @@ export class Podcastifier {
         const ytAdapter = new YoutubeAdapter(this._databaseController, this._configuration.apiKey);
         this._adapters = {};
         this._adapters[ytAdapter.sourceModuleType] = ytAdapter;
-        this._initialRun();
-        this._startPolling();
-        this._setupPushNotifications();
+        this._initialRun()
+            .subscribe(() => {
+                console.log(chalk.default.yellow("Initial run completed."));
+                if (this._configuration.pollInterval > 0) {
+                    this._startPolling();
+                }
+                this._setupPushNotifications();
+            });
+
     }
 
     private _startPolling() {
-        this._timer = new ReplaySubject(0);
         this._timer
             .throttleTime(3600000)
             .subscribe(() => {
@@ -123,58 +129,44 @@ export class Podcastifier {
                     + adapterKey;
                 const adapter = (this._adapters[adapterKey] as SourceAdapter);
                 this._expressServer.all("/push/" + adapterKey, (req, res) => {
-                    console.log("Received push notification event", JSON.stringify(req.query), req.headers, req.body);
+                    console.log("Received push notification event", req.headers, req.body);
                     const handlerResult = adapter.pushUpdateHandler([req, res]);
                     if (handlerResult) {
                         this._databaseController
                             .getPodcastsFromChannel(handlerResult)
                             .flatMap((podcasts) => {
-                                return Observable.of(...podcasts);
-                            })
-                            .flatMap((podcast) => {
-                                return this._adapters[podcast.sourceModule]
-                                    .checkUpdates(podcast.alias).map((result) => {
-                                        if (result) {
-                                            return podcast;
-                                        }
-                                    });
-                            })
-                            .flatMap((podcast) => {
-                                if (podcast) {
-                                    return this._generateFeed(podcast)
-                                        .map(() => podcast);
-                                }
-                            })
-                            .flatMap((podcast) => {
-                                if (podcast) {
-                                    return this._checkOnePodcast(podcast);
-                                }
+                                return Observable.from(podcasts)
+                                    .flatMap(this._checkOnePodcast);
                             })
                             .subscribe((podcast) => {
                                 if (podcast) {
                                     console.log(chalk.default.green("Updated"), podcast, "via push notification.");
+                                } else {
+                                    console.log(chalk.default.green("Push notification resulted in no updates"));
                                 }
                             });
                     }
                 });
+
                 adapter.setupPushUpdates(uri).subscribe(() => {
                     console.log("Successfully set up push notifications.");
                 });
             });
     }
 
-    private _initialRun() {
-        this._podcasts.forEach((podcast) => {
+    private _initialRun(): Observable<void> {
+        return Observable.forkJoin(this._podcasts.map((podcast) => {
             console.log(chalk.default.yellow("Loaded podcast"), podcast.alias);
-            this._adapters[podcast.sourceModule].addPodcast(podcast)
+            return this._adapters[podcast.sourceModule].addPodcast(podcast)
                 .flatMap(() => {
                     console.log(chalk.default.yellow("Checking updates"), "for", podcast.alias);
                     return this._adapters[podcast.sourceModule].checkUpdates(podcast.alias);
                 })
                 .flatMap(() => this._pruneAndFetchFeedEntries(podcast.alias))
                 .flatMap(() => this._generateFeed(podcast))
-                .subscribe(() => { console.log(chalk.default.yellow("Initial run completed.")); });
-        });
+                .toArray();
+        }))
+            .map(() => { });
     }
 
     private _checkAllRun() {
@@ -186,7 +178,7 @@ export class Podcastifier {
             ),
         )
             .flatMap((updatedPods) => {
-                return Observable.of(...updatedPods);
+                return Observable.from(updatedPods);
             })
             .flatMap((pd) => {
                 return this._checkOnePodcast(pd);
@@ -201,18 +193,27 @@ export class Podcastifier {
     }
 
     private _checkOnePodcast(podcast: PodcastDefinition): Observable<PodcastDefinition> {
-        return Observable.of(podcast)
-            .flatMap((updatedPod) => {
-                if (updatedPod) {
-                    return this._pruneAndFetchFeedEntries(updatedPod.alias)
-                        .map(() => updatedPod);
+        return this._adapters[podcast.sourceModule]
+            .checkUpdates(podcast.alias)
+            .flatMap((value) => {
+                if (value) {
+                    return Observable.of(podcast);
+                } else {
+                    return Observable.empty<PodcastDefinition>();
                 }
             })
-            .flatMap((pod) => this._generateFeed(pod).map(() => pod))
+            .flatMap((updatedPod) =>
+                this._pruneAndFetchFeedEntries(updatedPod.alias)
+                    .map(() => updatedPod))
+            .flatMap((pod) => {
+                return this._generateFeed(pod).map(() => pod);
+            })
             .retry(3);
     }
 
     private _pruneAndFetchFeedEntries(podcastAlias: string): Observable<void> {
+        console.log("pruneAndFetch", podcastAlias);
+        let i = 0;
         return this._databaseController
             .listEpisodes(podcastAlias)
             .map((array) => {

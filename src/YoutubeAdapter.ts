@@ -51,7 +51,7 @@ export class YoutubeAdapter extends SourceAdapter {
                 }
                 return this._pullPlaylistItemsDetails(pod.playlistId)
                     .flatMap((fetchedList): Observable<IPlaylistItemsDetails> => {
-                        return Observable.of(...fetchedList);
+                        return Observable.from(fetchedList);
                     })
                     .flatMap((fetchedEntry) => {
                         return this._db.doesEpisodeExist(fetchedEntry.videoId)
@@ -113,28 +113,30 @@ export class YoutubeAdapter extends SourceAdapter {
                     .filter((x, i, a) => a.indexOf(x) === i);
             })
             .flatMap((podcastChannelIds) => {
-                return Observable.forkJoin(
-                    podcastChannelIds.map((cid) => {
-                        return new Observable<string>((observer) => {
-                            const options = {
-                                url: this._kPushHubUri,
-                                form: {
-                                    "hub.mode": "subscribe",
-                                    "hub.topic": this._kPushHubTopic + cid,
-                                    "hub.callback": uri,
-                                    "hub.verify": "sync",
-                                },
-                                encoding: "utf-8",
-                            };
-                            request.post(options, (error: any, _, body: any) => {
-                                if (error) {
-                                    observer.error(error as string);
-                                }
-                                observer.next(body as string);
-                                observer.complete();
-                            });
+                const obs: Array<Observable<string>> = [];
+                podcastChannelIds.forEach((cid) => {
+                    const ob =  Observable.create((observer) => {
+                        const options = {
+                            url: this._kPushHubUri,
+                            form: {
+                                "hub.mode": "subscribe",
+                                "hub.topic": this._kPushHubTopic + cid,
+                                "hub.callback": uri,
+                                "hub.verify": "sync",
+                            },
+                            encoding: "utf-8",
+                        };
+                        request.post(options, (error: any, _, body: any) => {
+                            if (error) {
+                                observer.error(error as string);
+                            }
+                            observer.next(body as string);
+                            observer.complete();
                         });
-                    }));
+                    });
+                    obs.push(ob);
+                });
+                return Observable.forkJoin(obs);
             })
             .map(() => { });
     }
@@ -147,22 +149,23 @@ export class YoutubeAdapter extends SourceAdapter {
     public pushUpdateHandler(update: [Request, Response]): string {
         const req = update[0];
         const res = update[1];
-
         const challenge = req.query["hub.challenge"];
         if (challenge) {
+            console.log("received Challenge");
             res.status(200).send(challenge);
             if (!this._pushResubscription) {
+                console.log("setting timeout");
                 const timeout = req.query["hub.lease_seconds"] * 1000;
-                this._pushResubscription = setTimeout(() => {
+                this._pushResubscription = Observable.timer(timeout)
+                    .subscribe(() => {
                     this._pushResubscription = undefined;
                     this.setupPushUpdates(this._pushUri);
-                },
-                timeout,
-            );
+                });
             }
             // tslint:disable-next-line:triple-equals
             return undefined;
         } else if (req.method === "POST") {
+            console.log("Received Push Delivery", req.headers);
             console.log(req.headers, req.header["link"], req.headers["link"]);
             console.log(JSON.stringify(req.headers["link"].toString().split(new RegExp("[<,>]"))));
             const url = new URL(

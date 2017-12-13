@@ -14,7 +14,13 @@ export class FeedTranspiler {
         forceWrite: boolean = false,
     ): Observable<string> {
         return this._fetchPayload(entry, storageDir, forceWrite)
-            .flatMap((stream) => this._transpilePayload(stream, entry, storageDir));
+            .flatMap((stream) => {
+                if (stream) {
+                    return this._transpilePayload(stream, entry, storageDir);
+                } else {
+                    return Observable.empty<string>();
+                }
+            });
     }
 
     private static _fetchPayload(

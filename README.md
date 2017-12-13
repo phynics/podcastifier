@@ -27,3 +27,5 @@ npm run deploy
 - FeedGenerator and FeedTranspiler are old code. They should be refactored to reduce coupling.
 
 - Implement an error handling scheme and rework pipelines
+
+- Implement teardown methods
