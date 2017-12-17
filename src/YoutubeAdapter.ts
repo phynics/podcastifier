@@ -82,15 +82,15 @@ export class YoutubeAdapter extends SourceAdapter {
      * @returns Observable for the list of podcast aliases for the
      * updated Podcasts.
      */
-    public checkAllUpdates(): Observable<PodcastDefinition[]> {
+    public checkAllUpdates(): Observable<string[]> {
         return this._db.listPodcastsFromSource(this.sourceModuleType)
             .flatMap((pods) => {
-                const obs = new Array<Observable<PodcastDefinition>>();
+                const obs = new Array<Observable<string>>();
                 pods.forEach((pod) => {
                     obs.push(
                         this.checkUpdates(pod.alias).flatMap((result) => {
                             if (result) {
-                                return Observable.of(pod);
+                                return Observable.of(pod.alias);
                             } else {
                                 return Observable.empty();
                             }

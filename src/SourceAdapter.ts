@@ -29,9 +29,9 @@ export abstract class SourceAdapter {
 
     /*
     * This updates all podcast feeds which is managed by this SourceAdapter.
-    * Returns definitions for updated podcasts.
+    * Returns aliases for updated podcasts.
     */
-    public abstract checkAllUpdates(): Observable<PodcastDefinition[]>;
+    public abstract checkAllUpdates(): Observable<string[]>;
 
     /*
     * This method is invoked to update the a particular podcast feed.

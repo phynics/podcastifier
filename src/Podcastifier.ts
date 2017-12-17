@@ -13,6 +13,7 @@ import * as rfs from "rotating-file-stream";
 
 import { Observable } from "rxjs/Observable";
 import { Subject } from "rxjs/Subject";
+import { AdapterError } from "./Errors";
 
 export class Podcastifier {
     private _expressServer: express.Express;
@@ -29,35 +30,46 @@ export class Podcastifier {
         private _configuration: Config,
         private _podcasts: PodcastDefinition[],
     ) {
-        this._setupExpress();
         this._setupDirectories();
-        if (this._expressServer != null) {
-            this._expressServer.listen(this._configuration.serverPort,
-                () => console.log(chalk.default.green("Started") +
-                    " express server at port " +
-                    this._configuration.serverPort + "."),
-            );
-        } else {
-            throw new Error("Cannot find an express server instance.");
-        }
         this._timer = new Subject();
         this._databaseController = new DatabaseController(this._configuration.dbFile);
+    }
+
+    public start() {
         this._databaseController.init().subscribe(() => {
+            this._expressServer = express();
+            if (this._expressServer != null) {
+                this._expressServer.listen(this._configuration.serverPort,
+                    () => console.log(chalk.default.green("Started") +
+                        " express server at port " +
+                        this._configuration.serverPort + "."),
+                );
+            } else {
+                throw new Error("Cannot find an express server instance.");
+            }
+            this._setupExpress();
             this._startAdapters();
         });
     }
 
     private _startAdapters() {
-        console.log(chalk.default.green("Starting Adapters"));
+        console.log(chalk.default.green("Starting Adapters..."));
+
+        // Setup your adapters here. TODO: Use reflections to setup adapters
         const ytAdapter = new YoutubeAdapter(this._databaseController, this._configuration.apiKey);
+
         this._adapters = {};
         this._adapters[ytAdapter.sourceModuleType] = ytAdapter;
         this._initialRun()
             .subscribe(() => {
-                console.log(chalk.default.yellow("Initial run completed."));
+                console.log(chalk.default.green("Initial run completed."));
                 if (this._configuration.pollInterval > 0) {
+                    console.log(chalk.default.green("Starting polling with " + this._configuration.pollInterval));
                     this._startPolling();
+                } else {
+                    console.log(chalk.default.yellow("No polling is setup"));
                 }
+                console.log(chalk.default.yellow("Setting up push notifications"));
                 this._setupPushNotifications();
             });
 
@@ -65,17 +77,17 @@ export class Podcastifier {
 
     private _startPolling() {
         this._timer
-            .throttleTime(3600000)
-            .subscribe(() => {
-                console.log(chalk.default.yellow("Polling with " + this._configuration.pollInterval));
-                this._checkAllRun();
-            });
+            .throttleTime(3600000) // Don't poll more than once an hour, even if forced.
+            .subscribe(this._checkAllRun);
         Observable.interval(this._configuration.pollInterval)
             .subscribe(() => {
                 this._timer.next(0);
             });
     }
 
+    /**
+     * Makes sure that the working directories exist.
+     */
     private _setupDirectories() {
         fs.mkdir(__dirname + "/" + this._configuration.feedPath, () => { });
         fs.mkdir(__dirname + "/" + this._configuration.filePath, () => { });
@@ -83,9 +95,10 @@ export class Podcastifier {
     }
 
     private _setupExpress() {
-        this._expressServer = express();
         const app = this._expressServer;
         app.use(morgan("short", { stream: this._logStream }));
+
+        // Serves the landing screen.
         app.get("/", (_, res) => {
             res.send("Podcastifier is serving the following feeds: <hr> <br>"
                 + this._podcasts.map((value) => {
@@ -95,6 +108,7 @@ export class Podcastifier {
                 }).join("<br>"));
         });
 
+        // Serves feeds for each podcast.
         app.get("/feeds/:podcastid/podcast.xml", (req, res) => {
             const podcastId: string = req.params.podcastid;
             if (fs.existsSync(__dirname + "/" + this._configuration.feedPath + podcastId + ".xml")) {
@@ -102,11 +116,13 @@ export class Podcastifier {
             }
         });
 
+        // Forces a poll.
         app.get("/finicks", (_, res) => {
             this._timer.next(0);
             res.sendStatus(418);
         });
 
+        // Serves mp3 files for each episode.
         app.get("/files/:fileid/ep.mp3", (req, res) => {
             const fileId: string = req.params.fileid;
             if (fs.existsSync(__dirname + "/" + this._configuration.filePath + fileId + ".mp3")) {
@@ -115,6 +131,63 @@ export class Podcastifier {
                 res.sendStatus(404);
             }
         });
+    }
+
+    private _initialRun(): Observable<void> {
+        return Observable.forkJoin(this._podcasts.map((podcast) => {
+            console.log(chalk.default.yellow("Loaded podcast"), podcast.alias);
+            return this._adapters[podcast.sourceModule].addPodcast(podcast)
+                .flatMap((check) => {
+                    if (check) {
+                        console.log(chalk.default.yellow("Checking updates"), "for", podcast.alias);
+                        return this._adapters[podcast.sourceModule].checkUpdates(podcast.alias);
+                    } else {
+                        return Observable.throw({
+                            message: "Podcast couldn't be added.",
+                            errorType: "adapter",
+                        } as AdapterError);
+                    }
+                })
+                .flatMap(() => this._pruneAndFetchFeedEntries(podcast.alias))
+                .flatMap(() => this._generateFeed(podcast.alias))
+                .toArray();
+        }))
+            .map(() => { });
+    }
+
+    private _checkAllRun() {
+        Observable.merge(
+            ...Object.keys(this._adapters).map(
+                (adapterKey) => (this._adapters[adapterKey] as SourceAdapter)
+                    .checkAllUpdates(),
+            ),
+        )
+            .flatMap((updatedPods) => {
+                return Observable.from(updatedPods);
+            })
+            .flatMap((updatedPod) =>
+                this._processPodcast(updatedPod)
+                    .filter((result) => result)
+                    .map(() => updatedPod))
+            .toArray()
+            .subscribe((updatedPods) => {
+                console.log(chalk.default.yellow("Update run completed."), "Following podcasts are updated:",
+                    updatedPods.length > 0 ?
+                        updatedPods.reduce((a, b) => a + "," + b) : "None");
+            });
+    }
+
+    private _processPodcast(alias: string): Observable<boolean> {
+        return this._databaseController.getPodcastFromAlias(alias)
+            .flatMap((podcast) => {
+                return this._adapters[podcast.sourceModule]
+                    .checkUpdates(podcast.alias);
+            })
+            .filter((value) => value === true)
+            .flatMap(() => this._pruneAndFetchFeedEntries(alias))
+            .flatMap(() => this._generateFeed(alias))
+            .map(() => true)
+            .defaultIfEmpty(false);
     }
 
     private _setupPushNotifications() {
@@ -132,12 +205,8 @@ export class Podcastifier {
                     console.log("Received push notification event", req.headers, req.body);
                     const handlerResult = adapter.pushUpdateHandler([req, res]);
                     if (handlerResult) {
-                        this._databaseController
-                            .getPodcastsFromChannel(handlerResult)
-                            .flatMap((podcasts) => {
-                                return Observable.from(podcasts)
-                                    .flatMap(this._checkOnePodcast);
-                            })
+                        this._processPodcast(handlerResult)
+                            .defaultIfEmpty(false)
                             .subscribe((podcast) => {
                                 if (podcast) {
                                     console.log(chalk.default.green("Updated"), podcast, "via push notification.");
@@ -154,66 +223,8 @@ export class Podcastifier {
             });
     }
 
-    private _initialRun(): Observable<void> {
-        return Observable.forkJoin(this._podcasts.map((podcast) => {
-            console.log(chalk.default.yellow("Loaded podcast"), podcast.alias);
-            return this._adapters[podcast.sourceModule].addPodcast(podcast)
-                .flatMap(() => {
-                    console.log(chalk.default.yellow("Checking updates"), "for", podcast.alias);
-                    return this._adapters[podcast.sourceModule].checkUpdates(podcast.alias);
-                })
-                .flatMap(() => this._pruneAndFetchFeedEntries(podcast.alias))
-                .flatMap(() => this._generateFeed(podcast))
-                .toArray();
-        }))
-            .map(() => { });
-    }
-
-    private _checkAllRun() {
-        Observable.merge(
-            ...Object.keys(this._adapters)
-                .map((adapterKey) => {
-                    return (this._adapters[adapterKey] as SourceAdapter).checkAllUpdates();
-                },
-            ),
-        )
-            .flatMap((updatedPods) => {
-                return Observable.from(updatedPods);
-            })
-            .flatMap((pd) => {
-                return this._checkOnePodcast(pd);
-            })
-            .toArray()
-            .subscribe((updatedPods) => {
-                console.log(chalk.default.yellow("Update run completed."), "Following podcasts are updated:");
-                console.log(updatedPods.length > 0 ?
-                    updatedPods.map((pod) => pod.alias).reduce((a, b) => a + "," + b)
-                    : "None");
-            });
-    }
-
-    private _checkOnePodcast(podcast: PodcastDefinition): Observable<PodcastDefinition> {
-        return this._adapters[podcast.sourceModule]
-            .checkUpdates(podcast.alias)
-            .flatMap((value) => {
-                if (value) {
-                    return Observable.of(podcast);
-                } else {
-                    return Observable.empty<PodcastDefinition>();
-                }
-            })
-            .flatMap((updatedPod) =>
-                this._pruneAndFetchFeedEntries(updatedPod.alias)
-                    .map(() => updatedPod))
-            .flatMap((pod) => {
-                return this._generateFeed(pod).map(() => pod);
-            })
-            .retry(3);
-    }
-
     private _pruneAndFetchFeedEntries(podcastAlias: string): Observable<void> {
         console.log("pruneAndFetch", podcastAlias);
-        let i = 0;
         return this._databaseController
             .listEpisodes(podcastAlias)
             .map((array) => {
@@ -287,9 +298,10 @@ export class Podcastifier {
         }
     }
 
-    private _generateFeed(podcast: PodcastDefinition): Observable<NodeJS.ErrnoException> {
-        return this._databaseController.listEpisodes(podcast.alias)
-            .flatMap((episodes) => {
+    private _generateFeed(alias: string): Observable<NodeJS.ErrnoException> {
+        return this._databaseController.listEpisodes(alias)
+            .zip(this._databaseController.getPodcastFromAlias(alias))
+            .flatMap(([episodes, podcast]) => {
                 episodes = episodes.filter(
                     (pd) => pd.state === PodcastEntryState.PUBLISHED ||
                         pd.state === PodcastEntryState.TRANSPILED,
@@ -304,7 +316,7 @@ export class Podcastifier {
                 return Observable.forkJoin(obs).map(() => xml);
             })
             .flatMap((xml) => {
-                return this._saveXml(xml, podcast.alias);
+                return this._saveXml(xml, alias);
             });
     }
 
