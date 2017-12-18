@@ -89,9 +89,13 @@ export class Podcastifier {
      * Makes sure that the working directories exist.
      */
     private _setupDirectories() {
-        fs.mkdir(__dirname + "/" + this._configuration.feedPath, () => { });
-        fs.mkdir(__dirname + "/" + this._configuration.filePath, () => { });
-        fs.mkdir(__dirname + "/" + this._configuration.logsPath, () => { });
+        const directories = [
+            __dirname + "/" + this._configuration.feedPath,
+            __dirname + "/" + this._configuration.filePath,
+            __dirname + "/" + this._configuration.logsPath,
+        ];
+        directories.filter((directory) => !fs.existsSync(directory))
+            .forEach((directory) => fs.mkdirSync(directory));
     }
 
     private _setupExpress() {
@@ -148,8 +152,7 @@ export class Podcastifier {
                         } as AdapterError);
                     }
                 })
-                .flatMap(() => this._pruneAndFetchFeedEntries(podcast.alias))
-                .flatMap(() => this._generateFeed(podcast.alias))
+                .flatMap(() => this._processPodcast(podcast.alias))
                 .toArray();
         }))
             .map(() => { });
@@ -317,7 +320,8 @@ export class Podcastifier {
             })
             .flatMap((xml) => {
                 return this._saveXml(xml, alias);
-            });
+            })
+            .do(() => console.log(chalk.default.green("Written feed for " + alias)));
     }
 
     private _saveXml(xml: string, alias: string): Observable<NodeJS.ErrnoException> {
