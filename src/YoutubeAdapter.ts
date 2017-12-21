@@ -46,7 +46,8 @@ export class YoutubeAdapter extends SourceAdapter {
     public checkUpdates(alias: string): Observable<boolean> {
         return this._db.getPodcastFromAlias(alias)
             .flatMap((pod) => {
-                if (pod.sourceModule === this.sourceModuleType) {
+                // tslint:disable-next-line:triple-equals
+                if (pod.sourceModule != this.sourceModuleType) {
                     return Observable.empty();
                 }
                 return this._pullPlaylistItemsDetails(pod.playlistId)
@@ -115,7 +116,7 @@ export class YoutubeAdapter extends SourceAdapter {
             .flatMap((podcastChannelIds) => {
                 const obs: Array<Observable<string>> = [];
                 podcastChannelIds.forEach((cid) => {
-                    const ob =  Observable.create((observer) => {
+                    const ob = Observable.create((observer) => {
                         const options = {
                             url: this._kPushHubUri,
                             form: {
@@ -158,9 +159,9 @@ export class YoutubeAdapter extends SourceAdapter {
                 const timeout = req.query["hub.lease_seconds"] * 1000;
                 this._pushResubscription = Observable.timer(timeout)
                     .subscribe(() => {
-                    this._pushResubscription = undefined;
-                    this.setupPushUpdates(this._pushUri);
-                });
+                        this._pushResubscription = undefined;
+                        this.setupPushUpdates(this._pushUri);
+                    });
             }
             // tslint:disable-next-line:triple-equals
             return undefined;
@@ -268,15 +269,17 @@ export class YoutubeAdapter extends SourceAdapter {
             .retrievePlaylistItemList(["snippet"], true, playlistId, 50)
             .map((raw) => {
                 const playlist = [] as IPlaylistItemsDetails[];
-                raw.items.forEach((item) => {
-                    const entry = {} as IPlaylistItemsDetails;
-                    entry.title = item.snippet.title;
-                    entry.date = item.snippet.publishedAt;
-                    entry.description = item.snippet.description;
-                    entry.thumbnail = item.snippet.thumbnails["high"].url;
-                    entry.videoId = item.snippet.resourceId.videoId;
-                    playlist.push(entry);
-                });
+                raw.items
+                    .filter((playlistItem) => playlistItem.snippet.title !== "Private video")
+                    .forEach((item) => {
+                        const entry = {} as IPlaylistItemsDetails;
+                        entry.title = item.snippet.title;
+                        entry.date = item.snippet.publishedAt;
+                        entry.description = item.snippet.description;
+                        entry.thumbnail = item.snippet.thumbnails["default"].url;
+                        entry.videoId = item.snippet.resourceId.videoId;
+                        playlist.push(entry);
+                    });
                 return playlist;
             });
     }
