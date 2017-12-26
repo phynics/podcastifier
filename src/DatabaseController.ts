@@ -220,7 +220,8 @@ export class DatabaseController {
             where: { alias: alias },
         };
         return Observable.fromPromise(
-            this._podcastModel.findOne(condition)
+            this._podcastModel
+                .findOne(condition)
                 .then((instance) => instance.get()),
         );
     }

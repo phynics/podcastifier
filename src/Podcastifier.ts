@@ -13,7 +13,6 @@ import * as rfs from "rotating-file-stream";
 
 import { Observable } from "rxjs/Observable";
 import { Subject } from "rxjs/Subject";
-import { AdapterError } from "./Errors";
 
 export class Podcastifier {
     private _expressServer: express.Express;
@@ -147,17 +146,16 @@ export class Podcastifier {
                     .addPodcast(podcast)
                     .flatMap((result) => {
                         if (result) {
+                            console.log(chalk.default.yellow("Loaded podcast"), podcast.alias);
                             return Observable.of(podcast);
                         } else {
+                            console.log(chalk.default.yellow("Podcast already exists"), podcast.alias);
                             return Observable.empty<PodcastDefinition>();
                         }
-                    })
-                    .do((pod) =>
-                        console.log(chalk.default.yellow("Loaded podcast"), pod.alias),
-                ),
+                    }),
             ),
         );
-        return addPodcasts.map(() => this._checkAllRun());
+        return addPodcasts.defaultIfEmpty().map(() => this._checkAllRun());
     }
 
     private _checkAllRun() {
@@ -177,6 +175,7 @@ export class Podcastifier {
                     .filter((result) => result)
                     .map(() => updatedPod))
             .toArray()
+            .defaultIfEmpty([])
             .subscribe((updatedPods) => {
                 console.log(chalk.default.yellow("Update run completed."), "Following podcasts are updated:",
                     updatedPods.length > 0 ?
@@ -211,8 +210,12 @@ export class Podcastifier {
                     console.log("Received push notification event", req.headers, req.body);
                     const handlerResult = adapter.pushUpdateHandler([req, res]);
                     if (handlerResult) {
-                        this._adapters[adapterKey]
-                            .checkUpdates(handlerResult)
+                        this._databaseController
+                            .getPodcastsFromChannel(handlerResult)
+                            .flatMap((arr) => Observable.from(arr))
+                            .flatMap((pd) => adapter.checkUpdates(pd.alias)
+                                .filter((result) => result)
+                                .map(() => pd.alias))
                             .flatMap((val) => this._processPodcast(val))
                             .defaultIfEmpty(false)
                             .subscribe((podcast) => {
